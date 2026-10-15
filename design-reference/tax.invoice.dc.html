@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#F4F4F0;-webkit-font-smoothing:antialiased}
+body{font-family:'Instrument Sans',system-ui,sans-serif;color:#15181A}
+a{color:#1B6B4F;text-decoration:none}
+a:hover{color:#10402F;text-decoration:underline}
+input,button,select,textarea{font:inherit;color:inherit;background:none;border:none;outline:none}
+button{cursor:pointer}
+::selection{background:#CFE4D8;color:#10402F}
+:focus-visible{outline:2px solid #1B6B4F;outline-offset:2px;border-radius:3px}
+input::placeholder{color:#A8ADA9}
+@keyframes riseIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes growBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;background:#F4F4F0">
+
+  <aside style="background:#0F2E26;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;border-right:1px solid #0A231D">
+    <div style="padding:22px 20px 18px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:baseline;gap:1px">
+        <span style="font:600 17px/1 'IBM Plex Mono',monospace;color:#F2F5F2;letter-spacing:-.02em">tax</span>
+        <span style="font:600 17px/1 'IBM Plex Mono',monospace;color:#6FBF9C">.</span>
+        <span style="font:400 17px/1 'IBM Plex Mono',monospace;color:#A9C4B8;letter-spacing:-.02em">invoice</span>
+      </div>
+      <button onClick="{{ openEntity }}" style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:1px solid #21453A;border-radius:5px;background:#12362C;text-align:left" style-hover="background:#164034;border-color:#2C5A4B">
+        <span style="width:24px;height:24px;border-radius:4px;background:#6FBF9C;color:#0F2E26;font:600 11px/24px 'IBM Plex Mono',monospace;text-align:center;flex:none">AC</span>
+        <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+          <span style="font:500 12px/1.1 'Instrument Sans',sans-serif;color:#EAF1ED;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Altiva Consultores</span>
+          <span style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#7E9C90">{{ entityTax }}</span>
+        </span>
+        <span style="margin-left:auto;color:#6C8C80;font-size:10px">▾</span>
+      </button>
+    </div>
+
+    <nav style="display:flex;flex-direction:column;gap:1px;padding:4px 10px 0;overflow-y:auto">
+      <sc-for list="{{ nav }}" as="it" hint-placeholder-count="9">
+        <button onClick="{{ it.go }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:5px;text-align:left;font:500 13px/1.2 'Instrument Sans',sans-serif;color:{{ it.fg }};background:{{ it.bg }};box-shadow:{{ it.mark }};position:relative" style-hover="background:#164034;color:#EAF1ED">
+          <span style="width:16px;text-align:center;font-size:12px;opacity:.9">{{ it.icon }}</span>
+          <span>{{ it.label }}</span>
+          <span style="margin-left:auto;font:500 10px/1 'IBM Plex Mono',monospace;color:{{ it.badgeFg }};background:{{ it.badgeBg }};padding:3px 5px;border-radius:3px">{{ it.badge }}</span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div style="margin-top:auto;padding:14px;border-top:1px solid #1B4038;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#7E9C90">Timbres SAT</span>
+        <span style="font:500 10px/1 'IBM Plex Mono',monospace;color:#CFE4D8">1 240 / 2 000</span>
+      </div>
+      <div style="height:3px;border-radius:2px;background:#1B4038;overflow:hidden">
+        <div style="width:62%;height:100%;background:#6FBF9C"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding-top:4px">
+        <span style="width:22px;height:22px;border-radius:50%;background:#2C5A4B;color:#CFE4D8;font:500 10px/22px 'IBM Plex Mono',monospace;text-align:center">MR</span>
+        <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#A9C4B8">Mariana Robles<br><span style="font-size:10px;color:#7E9C90">Contabilidad</span></span>
+      </div>
+    </div>
+  </aside>
+
+  <main style="min-width:0;display:flex;flex-direction:column">
+    <header style="position:sticky;top:0;z-index:20;background:rgba(244,244,240,.92);backdrop-filter:blur(8px);border-bottom:1px solid #E3E3DC;padding:0 32px;display:flex;align-items:center;gap:20px;height:60px">
+      <div style="display:flex;align-items:baseline;gap:8px;min-width:0">
+        <span style="font:600 15px/1.2 'Instrument Sans',sans-serif;letter-spacing:-.01em;white-space:nowrap">{{ title }}</span>
+        <span style="font:400 12px/1.2 'Instrument Sans',sans-serif;color:#8C938F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ subtitle }}</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;width:230px">
+          <span style="color:#A8ADA9;font-size:12px">⌕</span>
+          <input value="{{ q }}" onChange="{{ onSearch }}" placeholder="Buscar factura, cliente, RFC…" style="font:400 12px/1 'Instrument Sans',sans-serif;width:100%">
+          <span style="font:500 9px/1 'IBM Plex Mono',monospace;color:#A8ADA9;border:1px solid #E3E3DC;border-radius:3px;padding:3px 4px">⌘K</span>
+        </div>
+        <button onClick="{{ cyclePeriod }}" style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="border-color:#1B6B4F;color:#10402F">
+          <span style="color:#8C938F;font-size:11px">◱</span>{{ period }}
+        </button>
+        <button onClick="{{ newInvoice }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">
+          <span style="font-size:13px;line-height:1">＋</span>Nueva factura
+        </button>
+      </div>
+    </header>
+
+    <div style="padding:26px 32px 56px;max-width:1520px;width:100%">
+
+      <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+      <section data-screen-label="Resumen" style="display:flex;flex-direction:column;gap:22px;animation:riseIn .28s ease both">
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:16px 18px 15px;display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">{{ k.label }}</span>
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;padding:3px 5px;border-radius:3px;color:{{ k.fg }};background:{{ k.bg }}">{{ k.delta }}</span>
+              </div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;font-weight:500;font-size:25px;line-height:1;letter-spacing:-.02em;color:#15181A">{{ k.value }}</div>
+              <div style="font:400 11px/1.3 'Instrument Sans',sans-serif;color:#8C938F">{{ k.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px 14px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 13px/1.2 'Instrument Sans',sans-serif">Facturado vs. cobrado</span>
+                <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#8C938F">Consolidado en MXN · últimos 8 meses</span>
+              </div>
+              <div style="display:flex;gap:14px">
+                <span style="display:flex;align-items:center;gap:5px;font:400 11px/1 'Instrument Sans',sans-serif;color:#5B6360"><span style="width:8px;height:8px;border-radius:2px;background:#10402F"></span>Facturado</span>
+                <span style="display:flex;align-items:center;gap:5px;font:400 11px/1 'Instrument Sans',sans-serif;color:#5B6360"><span style="width:8px;height:8px;border-radius:2px;background:#9ED3B8"></span>Cobrado</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:14px;height:168px;border-bottom:1px solid #E3E3DC;padding-bottom:0">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="8">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end">
+                  <div style="display:flex;align-items:flex-end;gap:3px;height:100%;width:100%;justify-content:center">
+                    <div style="width:42%;max-width:24px;background:#10402F;border-radius:2px 2px 0 0;transform-origin:bottom;animation:growBar .5s ease both;height:{{ b.fh }}"></div>
+                    <div style="width:42%;max-width:24px;background:#9ED3B8;border-radius:2px 2px 0 0;transform-origin:bottom;animation:growBar .5s .08s ease both;height:{{ b.ch }}"></div>
+                  </div>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#8C938F;letter-spacing:.04em">{{ b.m }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 13px/1.2 'Instrument Sans',sans-serif">Antigüedad de saldos</span>
+              <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#8C938F">Cuentas por cobrar abiertas</span>
+            </div>
+            <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;gap:1px">
+              <sc-for list="{{ aging }}" as="a" hint-placeholder-count="4">
+                <div style="background:{{ a.color }};width:{{ a.w }}"></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ aging }}" as="a" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F0F0EA">
+                  <span style="width:8px;height:8px;border-radius:2px;background:{{ a.color }};flex:none"></span>
+                  <span style="font:400 12px/1 'Instrument Sans',sans-serif;color:#5B6360">{{ a.label }}</span>
+                  <span style="margin-left:auto;font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ a.amount }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;width:26px;text-align:right">{{ a.pct }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+            <span style="font:600 13px/1.2 'Instrument Sans',sans-serif">Impuestos del periodo</span>
+            <sc-for list="{{ taxRows }}" as="t" hint-placeholder-count="4">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font:400 12px/1.3 'Instrument Sans',sans-serif;color:#5B6360">{{ t.label }}</span>
+                <span style="flex:1;border-bottom:1px dotted #DDDDD5;transform:translateY(-3px)"></span>
+                <span style="font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ t.fg }}">{{ t.value }}</span>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:baseline;gap:10px;padding-top:11px;border-top:1px solid #E3E3DC">
+              <span style="font:600 12px/1.3 'Instrument Sans',sans-serif">Saldo a cargo</span>
+              <span style="flex:1"></span>
+              <span style="font:600 15px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#15181A">{{ taxDue }}</span>
+            </div>
+            <button onClick="{{ goReports }}" style="margin-top:2px;padding:8px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#10402F" style-hover="border-color:#1B6B4F;background:#F2F8F5">Ver declaración preliminar →</button>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font:600 13px/1.2 'Instrument Sans',sans-serif">Requiere atención</span>
+              <span style="font:500 10px/1 'IBM Plex Mono',monospace;color:#94332A;background:#F7E5E1;padding:3px 5px;border-radius:3px">5</span>
+            </div>
+            <sc-for list="{{ attention }}" as="a" hint-placeholder-count="4">
+              <button onClick="{{ a.go }}" style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #F0F0EA;text-align:left;width:100%" style-hover="background:#FAFAF7">
+                <span style="width:22px;height:22px;border-radius:4px;background:{{ a.bg }};color:{{ a.fg }};font:500 11px/22px 'IBM Plex Mono',monospace;text-align:center;flex:none">{{ a.icon }}</span>
+                <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                  <span style="font:500 12px/1.2 'Instrument Sans',sans-serif">{{ a.title }}</span>
+                  <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#8C938F">{{ a.note }}</span>
+                </span>
+                <span style="margin-left:auto;font:500 11px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ a.amount }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+            <span style="font:600 13px/1.2 'Instrument Sans',sans-serif">Actividad</span>
+            <sc-for list="{{ activity }}" as="a" hint-placeholder-count="5">
+              <div style="display:flex;gap:11px">
+                <span style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:none;padding-top:3px">
+                  <span style="width:7px;height:7px;border-radius:50%;border:1.5px solid {{ a.color }}"></span>
+                  <span style="width:1px;flex:1;background:#E9E9E2"></span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:2px;padding-bottom:12px;min-width:0">
+                  <span style="font:400 12px/1.35 'Instrument Sans',sans-serif;color:#15181A">{{ a.text }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ a.when }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isList }}">
+      <section data-screen-label="Facturas" style="display:flex;flex-direction:column;gap:16px;animation:riseIn .28s ease both">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+            <button onClick="{{ f.go }}" style="display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;border:1px solid {{ f.bd }};background:{{ f.bg }};color:{{ f.fg }}" style-hover="border-color:#1B6B4F">
+              {{ f.label }}<span style="font:400 10px/1 'IBM Plex Mono',monospace;opacity:.6">{{ f.count }}</span>
+            </button>
+          </sc-for>
+          <span style="flex:1"></span>
+          <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Filtros avanzados</button>
+          <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Exportar CSV</button>
+        </div>
+
+        <sc-if value="{{ hasSel }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#10402F;border-radius:6px">
+            <span style="font:500 12px/1 'Instrument Sans',sans-serif;color:#F2F5F2">{{ selCount }} seleccionadas · {{ selTotal }}</span>
+            <span style="flex:1"></span>
+            <button style="padding:6px 10px;border:1px solid #2C5A4B;border-radius:4px;font:500 11px/1 'Instrument Sans',sans-serif;color:#CFE4D8" style-hover="background:#164034">Enviar recordatorio</button>
+            <button style="padding:6px 10px;border:1px solid #2C5A4B;border-radius:4px;font:500 11px/1 'Instrument Sans',sans-serif;color:#CFE4D8" style-hover="background:#164034">Registrar pago</button>
+            <button onClick="{{ clearSel }}" style="font:500 11px/1 'Instrument Sans',sans-serif;color:#7E9C90;padding:6px">Limpiar</button>
+          </div>
+        </sc-if>
+
+        <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:36px 96px minmax(0,1.5fr) 104px 104px 118px 130px 76px;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+            <span></span><span>Folio</span><span>Cliente</span><span>Emisión</span><span>Vence</span><span>Estado</span><span style="text-align:right">Total</span><span style="text-align:right">Saldo</span>
+          </div>
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+            <div style="display:grid;grid-template-columns:36px 96px minmax(0,1.5fr) 104px 104px 118px 130px 76px;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #F0F0EA;background:{{ r.rowBg }}" style-hover="background:#FAFAF7">
+              <button onClick="{{ r.toggle }}" style="width:15px;height:15px;border:1px solid {{ r.cbBd }};border-radius:3px;background:{{ r.cbBg }};color:#fff;font:600 9px/13px 'IBM Plex Mono',monospace">{{ r.check }}</button>
+              <button onClick="{{ r.open }}" style="font:500 12px/1 'IBM Plex Mono',monospace;color:#10402F;text-align:left" style-hover="color:#1B6B4F;text-decoration:underline">{{ r.id }}</button>
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font:500 13px/1.2 'Instrument Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.client }}</span>
+                <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ r.meta }}</span>
+              </div>
+              <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:#5B6360;font-variant-numeric:tabular-nums">{{ r.issued }}</span>
+              <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:{{ r.dueFg }};font-variant-numeric:tabular-nums">{{ r.due }}</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;justify-self:start;padding:4px 8px;border-radius:3px;font:500 11px/1 'Instrument Sans',sans-serif;color:{{ r.stFg }};background:{{ r.stBg }}">
+                <span style="width:5px;height:5px;border-radius:50%;background:{{ r.stFg }}"></span>{{ r.status }}
+              </span>
+              <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ r.total }}</span>
+              <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ r.balFg }}">{{ r.balance }}</span>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:center;gap:16px;padding:12px 18px;background:#FAFAF7">
+            <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#8C938F">{{ rowsNote }}</span>
+            <span style="flex:1"></span>
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#5B6360">Total filtrado</span>
+            <span style="font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ filteredTotal }}</span>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isNew }}">
+      <section data-screen-label="Nueva factura" style="display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:18px;align-items:start;animation:riseIn .28s ease both">
+        <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 24px;border-bottom:1px solid #E3E3DC;background:#FAFAF7">
+            <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Régimen</span>
+            <sc-for list="{{ regimes }}" as="g" hint-placeholder-count="3">
+              <button onClick="{{ g.go }}" style="padding:5px 9px;border-radius:4px;font:500 11px/1 'IBM Plex Mono',monospace;border:1px solid {{ g.bd }};background:{{ g.bg }};color:{{ g.fg }}" style-hover="border-color:#1B6B4F">{{ g.label }}</button>
+            </sc-for>
+            <span style="flex:1"></span>
+            <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#8C938F">{{ regimeNote }}</span>
+          </div>
+
+          <div style="padding:28px 24px 8px;display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:32px">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Facturar a</span>
+                <button onClick="{{ pickClient }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #DDDDD5;border-radius:5px;text-align:left" style-hover="border-color:#1B6B4F;background:#FAFAF7">
+                  <span style="width:28px;height:28px;border-radius:4px;background:#E7F0EB;color:#10402F;font:500 11px/28px 'IBM Plex Mono',monospace;text-align:center;flex:none">{{ draftInitials }}</span>
+                  <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                    <span style="font:500 13px/1.2 'Instrument Sans',sans-serif">{{ draftClient }}</span>
+                    <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#8C938F;letter-spacing:.04em">{{ draftClientTax }}</span>
+                  </span>
+                  <span style="margin-left:auto;font:400 11px/1 'Instrument Sans',sans-serif;color:#1B6B4F">Cambiar</span>
+                </button>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Uso / concepto CFDI</span>
+                  <div style="padding:9px 11px;border:1px solid #DDDDD5;border-radius:5px;font:400 12px/1.2 'Instrument Sans',sans-serif">G03 · Gastos en general</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Condiciones</span>
+                  <div style="padding:9px 11px;border:1px solid #DDDDD5;border-radius:5px;font:400 12px/1.2 'Instrument Sans',sans-serif">Neto 15 días</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;border-left:1px solid #F0F0EA;padding-left:24px">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Folio</span>
+                <span style="font:500 16px/1 'IBM Plex Mono',monospace;letter-spacing:-.01em">F-2042</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Emisión</span>
+                <span style="font:400 13px/1 'IBM Plex Mono',monospace">15 sep 2026</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Vencimiento</span>
+                <span style="font:400 13px/1 'IBM Plex Mono',monospace">30 sep 2026</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Moneda</span>
+                <span style="font:400 13px/1 'IBM Plex Mono',monospace">{{ draftCurrency }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:14px 24px 24px">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 92px 74px 118px 72px 118px 30px;gap:10px;align-items:center;padding:0 0 9px;border-bottom:1px solid #E3E3DC;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+              <span>Descripción</span><span>Clave prod.</span><span style="text-align:right">Cant.</span><span style="text-align:right">Precio</span><span style="text-align:right">Imp.</span><span style="text-align:right">Importe</span><span></span>
+            </div>
+            <sc-for list="{{ lines }}" as="l" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) 92px 74px 118px 72px 118px 30px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #F4F4EE" style-hover="background:#FAFAF7">
+                <input value="{{ l.desc }}" onChange="{{ l.onDesc }}" style="font:400 13px/1.3 'Instrument Sans',sans-serif;padding:5px 6px;border:1px solid transparent;border-radius:4px" style-focus="border-color:#1B6B4F;background:#F7FBF9">
+                <input value="{{ l.sku }}" onChange="{{ l.onSku }}" style="font:400 11px/1 'IBM Plex Mono',monospace;color:#5B6360;padding:5px 6px;border:1px solid transparent;border-radius:4px" style-focus="border-color:#1B6B4F;background:#F7FBF9">
+                <input value="{{ l.qty }}" onChange="{{ l.onQty }}" style="font:400 12px/1 'IBM Plex Mono',monospace;text-align:right;padding:5px 6px;border:1px solid transparent;border-radius:4px;font-variant-numeric:tabular-nums" style-focus="border-color:#1B6B4F;background:#F7FBF9">
+                <input value="{{ l.price }}" onChange="{{ l.onPrice }}" style="font:400 12px/1 'IBM Plex Mono',monospace;text-align:right;padding:5px 6px;border:1px solid transparent;border-radius:4px;font-variant-numeric:tabular-nums" style-focus="border-color:#1B6B4F;background:#F7FBF9">
+                <span style="text-align:right;font:400 11px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ l.taxLabel }}</span>
+                <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ l.amount }}</span>
+                <button onClick="{{ l.remove }}" style="font:400 14px/1 'Instrument Sans',sans-serif;color:#C2C7C3;text-align:center" style-hover="color:#A83A2B">×</button>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:10px;padding-top:12px">
+              <button onClick="{{ addLine }}" style="display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px dashed #C7CCC8;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#10402F" style-hover="border-color:#1B6B4F;background:#F7FBF9">＋ Agregar línea</button>
+              <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Desde catálogo</button>
+              <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Importar horas</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:78px">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:11px">
+            <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Resumen</span>
+            <sc-for list="{{ totals }}" as="t" hint-placeholder-count="3">
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <span style="font:400 12px/1.3 'Instrument Sans',sans-serif;color:#5B6360">{{ t.label }}</span>
+                <span style="flex:1;border-bottom:1px dotted #E3E3DC;transform:translateY(-3px)"></span>
+                <span style="font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ t.fg }}">{{ t.value }}</span>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;padding-top:12px;border-top:1px solid #E3E3DC">
+              <span style="font:600 12px/1 'Instrument Sans',sans-serif">Total</span>
+              <span style="font:600 21px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ draftTotal }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+              <button onClick="{{ emit }}" style="padding:10px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">{{ emitLabel }}</button>
+              <button onClick="{{ saveDraft }}" style="padding:10px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Guardar borrador</button>
+            </div>
+          </div>
+
+          <div style="background:#F7FBF9;border:1px solid #CFE4D8;border-radius:6px;padding:15px 17px;display:flex;flex-direction:column;gap:9px">
+            <span style="font:600 12px/1 'Instrument Sans',sans-serif;color:#10402F">Validación fiscal</span>
+            <sc-for list="{{ checks }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span style="font:500 11px/1.3 'IBM Plex Mono',monospace;color:{{ c.fg }};flex:none">{{ c.icon }}</span>
+                <span style="font:400 11px/1.35 'Instrument Sans',sans-serif;color:#3E4844">{{ c.text }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:15px 17px;display:flex;flex-direction:column;gap:9px">
+            <span style="font:600 12px/1 'Instrument Sans',sans-serif">Contabilización</span>
+            <sc-for list="{{ ledger }}" as="e" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:8px;align-items:baseline">
+                <span style="font:400 10px/1.2 'IBM Plex Mono',monospace;color:#A8ADA9">{{ e.acct }}</span>
+                <span style="font:400 11px/1.3 'Instrument Sans',sans-serif;color:#5B6360">{{ e.name }}</span>
+                <span style="font:500 11px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ e.fg }}">{{ e.amount }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isDetail }}">
+      <section data-screen-label="Detalle de factura" style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start;animation:riseIn .28s ease both">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <button onClick="{{ goList }}" style="padding:7px 10px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">← Facturas</button>
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:3px;font:500 11px/1 'Instrument Sans',sans-serif;color:{{ detStFg }};background:{{ detStBg }}">
+              <span style="width:5px;height:5px;border-radius:50%;background:{{ detStFg }}"></span>{{ detStatus }}
+            </span>
+            <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#8C938F">{{ detAge }}</span>
+            <span style="flex:1"></span>
+            <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Descargar PDF · XML</button>
+            <button onClick="{{ remind }}" style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Enviar recordatorio</button>
+            <button onClick="{{ pay }}" style="padding:8px 13px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">Registrar pago</button>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:40px 44px 34px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:28px;border-bottom:1px solid #15181A">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:baseline;gap:1px">
+                  <span style="font:600 14px/1 'IBM Plex Mono',monospace">tax</span><span style="font:600 14px/1 'IBM Plex Mono',monospace;color:#1B6B4F">.</span><span style="font:400 14px/1 'IBM Plex Mono',monospace;color:#8C938F">invoice</span>
+                </div>
+                <span style="font:600 15px/1.2 'Instrument Sans',sans-serif">Altiva Consultores S.C.</span>
+                <span style="font:400 11px/1.6 'IBM Plex Mono',monospace;color:#8C938F">RFC ACO210518H45<br>Av. Reforma 296, Piso 12<br>Cuauhtémoc, CDMX 06600</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#8C938F">Factura</span>
+                <span style="font:500 26px/1.1 'IBM Plex Mono',monospace;letter-spacing:-.02em">{{ detId }}</span>
+                <span style="font:400 11px/1.5 'IBM Plex Mono',monospace;color:#8C938F">{{ detUuidLabel }}<br>{{ detUuid }}</span>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 1fr;gap:40px;padding:26px 0 30px">
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#8C938F">Receptor</span>
+                <span style="font:600 14px/1.2 'Instrument Sans',sans-serif">{{ detClient }}</span>
+                <span style="font:400 11px/1.6 'IBM Plex Mono',monospace;color:#5B6360">{{ detClientTax }}<br>{{ detClientAddr }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 20px;align-self:start">
+                <sc-for list="{{ detMeta }}" as="m" hint-placeholder-count="4">
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">{{ m.label }}</span>
+                    <span style="font:400 12px/1.2 'IBM Plex Mono',monospace;color:#15181A">{{ m.value }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 70px 120px 70px 130px;gap:12px;padding:9px 0;border-top:1px solid #15181A;border-bottom:1px solid #E3E3DC;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+              <span>Concepto</span><span style="text-align:right">Cant.</span><span style="text-align:right">Precio</span><span style="text-align:right">Imp.</span><span style="text-align:right">Importe</span>
+            </div>
+            <sc-for list="{{ detLines }}" as="l" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) 70px 120px 70px 130px;gap:12px;padding:13px 0;border-bottom:1px solid #F0F0EA;align-items:baseline">
+                <span style="display:flex;flex-direction:column;gap:3px">
+                  <span style="font:400 13px/1.35 'Instrument Sans',sans-serif">{{ l.desc }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ l.sku }}</span>
+                </span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#5B6360">{{ l.qty }}</span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#5B6360">{{ l.price }}</span>
+                <span style="text-align:right;font:400 11px/1 'IBM Plex Mono',monospace;color:#8C938F">{{ l.tax }}</span>
+                <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ l.amount }}</span>
+              </div>
+            </sc-for>
+
+            <div style="display:flex;justify-content:flex-end;padding-top:20px">
+              <div style="width:320px;display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ detTotals }}" as="t" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:baseline;gap:10px">
+                    <span style="font:400 12px/1.3 'Instrument Sans',sans-serif;color:#5B6360">{{ t.label }}</span>
+                    <span style="flex:1;border-bottom:1px dotted #E3E3DC;transform:translateY(-3px)"></span>
+                    <span style="font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ t.fg }}">{{ t.value }}</span>
+                  </div>
+                </sc-for>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;padding-top:11px;border-top:1px solid #15181A">
+                  <span style="font:600 12px/1 'Instrument Sans',sans-serif">Total {{ detCurrency }}</span>
+                  <span style="font:600 22px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ detTotal }}</span>
+                </div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;padding-top:8px">
+                  <span style="font:500 11px/1 'Instrument Sans',sans-serif;color:#94332A">Saldo pendiente</span>
+                  <span style="font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#94332A">{{ detBalance }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:78px">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Bitácora</span>
+              <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9">{{ detEventCount }} eventos</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ timeline }}" as="e" hint-placeholder-count="6">
+                <div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:11px">
+                  <span style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                    <span style="width:9px;height:9px;border-radius:50%;background:{{ e.dot }};border:2px solid {{ e.ring }};margin-top:3px"></span>
+                    <span style="width:1px;flex:1;background:#E9E9E2"></span>
+                  </span>
+                  <span style="display:flex;flex-direction:column;gap:3px;padding-bottom:16px">
+                    <span style="font:500 12px/1.2 'Instrument Sans',sans-serif">{{ e.title }}</span>
+                    <span style="font:400 11px/1.4 'Instrument Sans',sans-serif;color:#8C938F">{{ e.detail }}</span>
+                    <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ e.when }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+            <span style="font:600 13px/1 'Instrument Sans',sans-serif">Comportamiento de pago</span>
+            <sc-for list="{{ payBehavior }}" as="p" hint-placeholder-count="3">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font:400 12px/1.2 'Instrument Sans',sans-serif;color:#5B6360">{{ p.label }}</span>
+                <span style="font:500 12px/1 'IBM Plex Mono',monospace;color:{{ p.fg }}">{{ p.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isClients }}">
+      <section data-screen-label="Clientes" style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start;animation:riseIn .28s ease both">
+        <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:minmax(0,1.4fr) 132px 100px 88px 130px 96px;gap:12px;padding:11px 18px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+            <span>Cliente</span><span>ID fiscal</span><span>Condiciones</span><span style="text-align:right">Días prom.</span><span style="text-align:right">Saldo</span><span style="text-align:right">Abiertas</span>
+          </div>
+          <sc-for list="{{ clients }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.select }}" style="display:grid;grid-template-columns:minmax(0,1.4fr) 132px 100px 88px 130px 96px;gap:12px;align-items:center;padding:13px 18px;border-bottom:1px solid #F0F0EA;width:100%;text-align:left;background:{{ c.bg }}" style-hover="background:#FAFAF7">
+              <span style="display:flex;align-items:center;gap:10px;min-width:0">
+                <span style="width:26px;height:26px;border-radius:4px;background:{{ c.avBg }};color:{{ c.avFg }};font:500 10px/26px 'IBM Plex Mono',monospace;text-align:center;flex:none">{{ c.initials }}</span>
+                <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                  <span style="font:500 13px/1.2 'Instrument Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ c.country }}</span>
+                </span>
+              </span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ c.taxId }}</span>
+              <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#5B6360">{{ c.terms }}</span>
+              <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ c.daysFg }}">{{ c.avgDays }}</span>
+              <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ c.balance }}</span>
+              <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ c.open }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:78px">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;gap:11px">
+              <span style="width:36px;height:36px;border-radius:5px;background:#E7F0EB;color:#10402F;font:500 13px/36px 'IBM Plex Mono',monospace;text-align:center;flex:none">{{ selClientInitials }}</span>
+              <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                <span style="font:600 14px/1.2 'Instrument Sans',sans-serif">{{ selClientName }}</span>
+                <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#8C938F;letter-spacing:.04em">{{ selClientTax }}</span>
+              </span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#F0F0EA;border:1px solid #F0F0EA;border-radius:5px;overflow:hidden">
+              <sc-for list="{{ selClientStats }}" as="s" hint-placeholder-count="4">
+                <div style="background:#fff;padding:12px 13px;display:flex;flex-direction:column;gap:5px">
+                  <span style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">{{ s.label }}</span>
+                  <span style="font:500 15px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ s.fg }}">{{ s.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">Facturas abiertas</span>
+              <sc-for list="{{ selClientInvoices }}" as="i" hint-placeholder-count="3">
+                <button onClick="{{ i.open }}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F4F4EE;text-align:left" style-hover="background:#FAFAF7">
+                  <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#10402F">{{ i.id }}</span>
+                  <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:{{ i.fg }}">{{ i.due }}</span>
+                  <span style="margin-left:auto;font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ i.total }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onClick="{{ newInvoice }}" style="flex:1;padding:9px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">Facturar</button>
+              <button style="flex:1;padding:9px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Estado de cuenta</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isPayments }}">
+      <section data-screen-label="Cobros" style="display:flex;flex-direction:column;gap:16px;animation:riseIn .28s ease both">
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ payKpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:15px 17px;display:flex;flex-direction:column;gap:8px">
+              <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">{{ k.label }}</span>
+              <span style="font:500 20px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:{{ k.fg }}">{{ k.value }}</span>
+              <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#8C938F">{{ k.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid #E3E3DC">
+            <span style="font:600 13px/1 'Instrument Sans',sans-serif">Pagos recibidos</span>
+            <span style="flex:1"></span>
+            <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Conciliar banco</button>
+            <button style="padding:8px 12px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">＋ Registrar pago</button>
+          </div>
+          <div style="display:grid;grid-template-columns:104px minmax(0,1.3fr) 120px 130px minmax(0,1fr) 130px;gap:12px;padding:11px 18px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+            <span>Fecha</span><span>Cliente</span><span>Método</span><span>Referencia</span><span>Aplicado a</span><span style="text-align:right">Importe</span>
+          </div>
+          <sc-for list="{{ payments }}" as="p" hint-placeholder-count="7">
+            <div style="display:grid;grid-template-columns:104px minmax(0,1.3fr) 120px 130px minmax(0,1fr) 130px;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid #F0F0EA" style-hover="background:#FAFAF7">
+              <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ p.date }}</span>
+              <span style="font:500 13px/1.2 'Instrument Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.client }}</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ p.method }}</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#A8ADA9">{{ p.ref }}</span>
+              <span style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:{{ p.appFg }};background:{{ p.appBg }};padding:4px 7px;border-radius:3px">{{ p.applied }}</span>
+              </span>
+              <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#15181A">{{ p.amount }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isExpenses }}">
+      <section data-screen-label="Gastos" style="display:flex;flex-direction:column;gap:16px;animation:riseIn .28s ease both">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid #E3E3DC">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Gastos y compras</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#8C938F">{{ period }}</span>
+              <span style="flex:1"></span>
+              <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Subir XML / recibo</button>
+              <button style="padding:8px 12px;border-radius:5px;background:#10402F;color:#F2F5F2;font:500 12px/1 'Instrument Sans',sans-serif" style-hover="background:#1B6B4F">＋ Gasto</button>
+            </div>
+            <div style="display:grid;grid-template-columns:100px minmax(0,1.2fr) minmax(0,1fr) 104px 112px 104px;gap:12px;padding:11px 18px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+              <span>Fecha</span><span>Proveedor</span><span>Categoría</span><span>Deducible</span><span style="text-align:right">Importe</span><span style="text-align:right">IVA acred.</span>
+            </div>
+            <sc-for list="{{ expenses }}" as="e" hint-placeholder-count="7">
+              <div style="display:grid;grid-template-columns:100px minmax(0,1.2fr) minmax(0,1fr) 104px 112px 104px;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid #F0F0EA" style-hover="background:#FAFAF7">
+                <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ e.date }}</span>
+                <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                  <span style="font:500 13px/1.2 'Instrument Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.vendor }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9">{{ e.doc }}</span>
+                </span>
+                <span style="font:400 12px/1.2 'Instrument Sans',sans-serif;color:#5B6360">{{ e.category }}</span>
+                <span style="justify-self:start;font:500 11px/1 'Instrument Sans',sans-serif;padding:4px 8px;border-radius:3px;color:{{ e.dedFg }};background:{{ e.dedBg }}">{{ e.deductible }}</span>
+                <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ e.amount }}</span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#1B6B4F">{{ e.vat }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:13px">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Por categoría</span>
+              <sc-for list="{{ expCats }}" as="c" hint-placeholder-count="5">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between">
+                    <span style="font:400 12px/1 'Instrument Sans',sans-serif;color:#5B6360">{{ c.label }}</span>
+                    <span style="font:500 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ c.amount }}</span>
+                  </div>
+                  <div style="height:4px;border-radius:2px;background:#F0F0EA;overflow:hidden">
+                    <div style="height:100%;background:#10402F;width:{{ c.w }}"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:#F7FBF9;border:1px solid #CFE4D8;border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+              <span style="font:600 12px/1 'Instrument Sans',sans-serif;color:#10402F">IVA acreditable del periodo</span>
+              <span style="font:600 22px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#10402F">$58 412.80</span>
+              <span style="font:400 11px/1.4 'Instrument Sans',sans-serif;color:#3E4844">3 comprobantes sin XML asociado no se están acreditando.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isRecurring }}">
+      <section data-screen-label="Recurrentes" style="display:flex;flex-direction:column;gap:16px;animation:riseIn .28s ease both">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ recKpis }}" as="k" hint-placeholder-count="3">
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+              <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8C938F">{{ k.label }}</span>
+              <span style="font:500 22px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ k.value }}</span>
+              <span style="font:400 11px/1.2 'Instrument Sans',sans-serif;color:#8C938F">{{ k.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 120px 118px 108px 126px;gap:12px;padding:11px 18px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+            <span>Suscripción</span><span>Cliente</span><span>Cadencia</span><span>Próxima</span><span>Estado</span><span style="text-align:right">Importe</span>
+          </div>
+          <sc-for list="{{ recurring }}" as="r" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 120px 118px 108px 126px;gap:12px;align-items:center;padding:13px 18px;border-bottom:1px solid #F0F0EA" style-hover="background:#FAFAF7">
+              <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font:500 13px/1.2 'Instrument Sans',sans-serif">{{ r.name }}</span>
+                <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9">{{ r.plan }}</span>
+              </span>
+              <span style="font:400 12px/1.2 'Instrument Sans',sans-serif;color:#5B6360;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.client }}</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ r.cadence }}</span>
+              <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:#15181A">{{ r.next }}</span>
+              <span style="justify-self:start;font:500 11px/1 'Instrument Sans',sans-serif;padding:4px 8px;border-radius:3px;color:{{ r.stFg }};background:{{ r.stBg }}">{{ r.status }}</span>
+              <span style="text-align:right;font:500 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ r.amount }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ isReports }}">
+      <section data-screen-label="Reportes e impuestos" style="display:flex;flex-direction:column;gap:16px;animation:riseIn .28s ease both">
+        <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start">
+          <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #E3E3DC">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Impuestos por jurisdicción</span>
+              <span style="flex:1"></span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#8C938F">{{ period }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 92px 126px 126px 118px;gap:12px;padding:11px 20px;border-bottom:1px solid #E3E3DC;background:#FAFAF7;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#8C938F">
+              <span>Jurisdicción</span><span style="text-align:right">Tasa</span><span style="text-align:right">Base</span><span style="text-align:right">Trasladado</span><span style="text-align:right">A pagar</span>
+            </div>
+            <sc-for list="{{ jurisdictions }}" as="j" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) 92px 126px 126px 118px;gap:12px;align-items:center;padding:13px 20px;border-bottom:1px solid #F0F0EA" style-hover="background:#FAFAF7">
+                <span style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font:500 13px/1.2 'Instrument Sans',sans-serif">{{ j.name }}</span>
+                  <span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9">{{ j.tax }}</span>
+                </span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;color:#5B6360">{{ j.rate }}</span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#5B6360">{{ j.base }}</span>
+                <span style="text-align:right;font:400 12px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums">{{ j.collected }}</span>
+                <span style="text-align:right;font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ j.fg }}">{{ j.due }}</span>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:#FAFAF7">
+              <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Exportar DIOT</button>
+              <button style="padding:7px 11px;border:1px solid #DDDDD5;border-radius:5px;background:#fff;font:500 12px/1 'Instrument Sans',sans-serif;color:#5B6360" style-hover="border-color:#1B6B4F;color:#10402F">Papel de trabajo XLSX</button>
+              <span style="flex:1"></span>
+              <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#8C938F">Cierre sugerido: 17 oct 2026</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:13px">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Estado de resultados</span>
+              <sc-for list="{{ pnl }}" as="p" hint-placeholder-count="5">
+                <div style="display:flex;align-items:baseline;gap:10px;padding-bottom:{{ p.pad }};border-bottom:{{ p.rule }}">
+                  <span style="font:{{ p.font }} 12px/1.3 'Instrument Sans',sans-serif;color:{{ p.labelFg }}">{{ p.label }}</span>
+                  <span style="flex:1;border-bottom:1px dotted #E3E3DC;transform:translateY(-3px)"></span>
+                  <span style="font:{{ p.font }} 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:{{ p.fg }}">{{ p.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:#fff;border:1px solid #E3E3DC;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+              <span style="font:600 13px/1 'Instrument Sans',sans-serif">Reportes guardados</span>
+              <sc-for list="{{ savedReports }}" as="r" hint-placeholder-count="5">
+                <button style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F4F4EE;text-align:left;width:100%" style-hover="background:#FAFAF7">
+                  <span style="font:400 12px/1.2 'Instrument Sans',sans-serif;color:#15181A">{{ r.name }}</span>
+                  <span style="margin-left:auto;font:400 10px/1 'IBM Plex Mono',monospace;color:#A8ADA9;letter-spacing:.04em">{{ r.freq }}</span>
+                  <span style="font:400 12px/1 'Instrument Sans',sans-serif;color:#1B6B4F">→</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ toast }}">
+    <div style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:11px;padding:11px 16px;background:#15181A;border-radius:6px;box-shadow:0 8px 28px rgba(21,24,26,.22);animation:riseIn .22s ease both">
+      <span style="width:6px;height:6px;border-radius:50%;background:#6FBF9C"></span>
+      <span style="font:500 12px/1 'Instrument Sans',sans-serif;color:#F2F5F2">{{ toast }}</span>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;openScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dashboard&quot;,&quot;list&quot;,&quot;new&quot;,&quot;detail&quot;,&quot;clients&quot;,&quot;payments&quot;,&quot;expenses&quot;,&quot;recurring&quot;,&quot;reports&quot;],&quot;default&quot;:&quot;dashboard&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototipo&quot;},&quot;defaultRegime&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;MX&quot;,&quot;CO&quot;,&quot;US&quot;],&quot;default&quot;:&quot;MX&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Fiscal&quot;},&quot;showRetentions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Fiscal&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: null,
+    filter: 'Todas',
+    q: '',
+    open: 'F-2041',
+    client: 'c1',
+    regime: null,
+    periodIdx: 0,
+    sel: [],
+    lines: [
+      { id: 1, desc: 'Implementación módulo de conciliación bancaria', sku: 'SRV-IMP', qty: '1', price: '145000', tax: 16 },
+      { id: 2, desc: 'Horas de soporte especializado', sku: 'SRV-SUP', qty: '24', price: '1250', tax: 16 },
+      { id: 3, desc: 'Licencia anual · 25 usuarios', sku: 'LIC-25', qty: '1', price: '38400', tax: 16 }
+    ],
+    nextId: 4,
+    toast: ''
+  };
+
+  periods = ['Sep 2026', 'Ago 2026', 'Jul 2026', '3T 2026'];
+
+  regimeData = {
+    MX: { label: 'MX · CFDI 4.0', cur: 'MXN', rate: 16, taxLabel: 'IVA 16%', ret: { label: 'Retención ISR 10%', rate: 10 }, note: 'Timbrado PAC · complemento de pago automático' },
+    CO: { label: 'CO · DIAN', cur: 'COP', rate: 19, taxLabel: 'IVA 19%', ret: { label: 'ReteFuente 11%', rate: 11 }, note: 'Numeración autorizada DIAN · rango 2026-A' },
+    US: { label: 'US · Sales tax', cur: 'USD', rate: 8.875, taxLabel: 'Sales tax 8.875%', ret: null, note: 'Nexo NY · cálculo por dirección de entrega' }
+  };
+
+  invoices = [
+    { id: 'F-2041', client: 'Grupo Azteca Retail', cid: 'c1', country: 'MX', cur: 'MXN', issued: '02 sep', due: '17 sep', status: 'Vencida', total: 184500, paid: 0, mxn: 184500 },
+    { id: 'F-2040', client: 'Nubank Colombia SAS', cid: 'c2', country: 'CO', cur: 'COP', issued: '05 sep', due: '05 oct', status: 'Enviada', total: 42300000, paid: 0, mxn: 198400 },
+    { id: 'F-2039', client: 'Vertex Analytics LLC', cid: 'c3', country: 'US', cur: 'USD', issued: '08 sep', due: '23 sep', status: 'Pagada', total: 18400, paid: 18400, mxn: 331200 },
+    { id: 'F-2038', client: 'Cafetalera Santa Rosa', cid: 'c4', country: 'MX', cur: 'MXN', issued: '01 sep', due: '16 sep', status: 'Pagada', total: 74200, paid: 74200, mxn: 74200 },
+    { id: 'F-2037', client: 'Studio Meridiano', cid: 'c5', country: 'MX', cur: 'MXN', issued: '12 sep', due: '27 sep', status: 'Borrador', total: 31900, paid: 0, mxn: 31900 },
+    { id: 'F-2036', client: 'Helio Energy Co', cid: 'c6', country: 'US', cur: 'USD', issued: '09 sep', due: '09 oct', status: 'Enviada', total: 9750, paid: 0, mxn: 175500 },
+    { id: 'F-2035', client: 'Despacho Rivas y Asoc.', cid: 'c7', country: 'MX', cur: 'MXN', issued: '28 ago', due: '12 sep', status: 'Parcial', total: 126800, paid: 60000, mxn: 66800 },
+    { id: 'F-2034', client: 'Andes Logística SpA', cid: 'c8', country: 'CL', cur: 'CLP', issued: '14 ago', due: '29 ago', status: 'Vencida', total: 8940000, paid: 0, mxn: 169900 },
+    { id: 'F-2033', client: 'Praxis Salud', cid: 'c9', country: 'MX', cur: 'MXN', issued: '20 ago', due: '04 sep', status: 'Pagada', total: 58300, paid: 58300, mxn: 58300 },
+    { id: 'F-2032', client: 'Loop Commerce Inc', cid: 'c10', country: 'US', cur: 'USD', issued: '10 sep', due: '10 oct', status: 'Enviada', total: 22300, paid: 0, mxn: 401400 },
+    { id: 'F-2031', client: 'Molino del Valle', cid: 'c11', country: 'MX', cur: 'MXN', issued: '18 ago', due: '02 sep', status: 'Pagada', total: 41250, paid: 41250, mxn: 41250 },
+    { id: 'F-2030', client: 'Tienda Kuna', cid: 'c12', country: 'CO', cur: 'COP', issued: '05 ago', due: '20 ago', status: 'Vencida', total: 12600000, paid: 0, mxn: 59100 }
+  ];
+
+  clientData = [
+    { id: 'c1', name: 'Grupo Azteca Retail', taxId: 'GAR180422K19', country: 'México · MXN', terms: 'Neto 15', avgDays: 38, balance: 184500, open: 3, cur: 'MXN', addr: 'Blvd. Manuel Ávila Camacho 40\nLomas de Chapultepec, CDMX' },
+    { id: 'c2', name: 'Nubank Colombia SAS', taxId: 'NIT 901.245.883-1', country: 'Colombia · COP', terms: 'Neto 30', avgDays: 27, balance: 198400, open: 2, cur: 'COP', addr: 'Cra. 11 #93-46\nBogotá D.C.' },
+    { id: 'c3', name: 'Vertex Analytics LLC', taxId: 'EIN 84-3921776', country: 'EE. UU. · USD', terms: 'Neto 15', avgDays: 12, balance: 0, open: 0, cur: 'USD', addr: '221 River St, Floor 9\nHoboken, NJ 07030' },
+    { id: 'c4', name: 'Cafetalera Santa Rosa', taxId: 'CSR090711MA3', country: 'México · MXN', terms: 'Contado', avgDays: 4, balance: 0, open: 0, cur: 'MXN', addr: 'Carretera Xalapa-Coatepec km 7\nVeracruz' },
+    { id: 'c7', name: 'Despacho Rivas y Asoc.', taxId: 'DRA150930TU8', country: 'México · MXN', terms: 'Neto 30', avgDays: 44, balance: 66800, open: 1, cur: 'MXN', addr: 'Av. Chapultepec 480\nGuadalajara, Jalisco' },
+    { id: 'c10', name: 'Loop Commerce Inc', taxId: 'EIN 88-1120934', country: 'EE. UU. · USD', terms: 'Neto 30', avgDays: 19, balance: 401400, open: 2, cur: 'USD', addr: '1180 Folsom St\nSan Francisco, CA 94103' }
+  ];
+
+  navItems = [
+    { key: 'dashboard', label: 'Resumen', icon: '◧' },
+    { key: 'list', label: 'Facturas', icon: '▤', badge: '12' },
+    { key: 'new', label: 'Nueva factura', icon: '＋' },
+    { key: 'clients', label: 'Clientes', icon: '◍' },
+    { key: 'payments', label: 'Cobros', icon: '◎', badge: '3' },
+    { key: 'expenses', label: 'Gastos', icon: '◱' },
+    { key: 'recurring', label: 'Recurrentes', icon: '↻' },
+    { key: 'reports', label: 'Reportes e impuestos', icon: '◔' }
+  ];
+
+  titles = {
+    dashboard: ['Resumen', 'Consolidado multi-entidad · MXN'],
+    list: ['Facturas', '12 documentos · 4 monedas'],
+    new: ['Nueva factura', 'Borrador F-2042'],
+    detail: ['Factura', 'Documento timbrado'],
+    clients: ['Clientes', '48 activos · 6 países'],
+    payments: ['Cobros y pagos', 'Conciliación bancaria al 14 sep'],
+    expenses: ['Gastos', 'IVA acreditable del periodo'],
+    recurring: ['Facturación recurrente', '18 suscripciones activas'],
+    reports: ['Reportes e impuestos', 'Cierre fiscal preliminar']
+  };
+
+  f(v, cur) {
+    const loc = cur === 'USD' ? 'en-US' : cur === 'COP' ? 'es-CO' : cur === 'CLP' ? 'es-CL' : 'es-MX';
+    const d = cur === 'COP' || cur === 'CLP' ? 0 : 2;
+    return new Intl.NumberFormat(loc, { style: 'currency', currency: cur, minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+  }
+  mx(v) { return this.f(v, 'MXN'); }
+  initials(n) { return n.split(' ').filter(w => w.length > 2).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+  go(screen) { return () => this.setState({ screen: screen, toast: '' }); }
+  flash(msg) { this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: '' }), 2600); }
+
+  statusStyle(s) {
+    const m = {
+      Pagada: ['#14573F', '#E4EFE9'], Enviada: ['#2B4F7A', '#E7EDF5'],
+      Vencida: ['#94332A', '#F7E5E1'], Borrador: ['#5B6360', '#ECECE6'], Parcial: ['#85601A', '#F6EFDD']
+    };
+    return m[s] || m.Borrador;
+  }
+
+  renderVals() {
+    const S = this.state;
+    const screen = S.screen || (this.props.openScreen || 'dashboard');
+    const rk = S.regime || (this.props.defaultRegime || 'MX');
+    const reg = this.regimeData[rk];
+    const showRet = this.props.showRetentions !== false && !!reg.ret;
+    const period = this.periods[S.periodIdx];
+    const t = this.titles[screen] || this.titles.dashboard;
+
+    const nav = this.navItems.map(n => {
+      const active = n.key === screen || (screen === 'detail' && n.key === 'list');
+      return {
+        label: n.label, icon: n.icon, go: this.go(n.key),
+        fg: active ? '#F2F5F2' : '#A9C4B8',
+        bg: active ? '#1A473A' : 'transparent',
+        mark: active ? 'inset 2px 0 0 #6FBF9C' : 'none',
+        badge: n.badge || '',
+        badgeFg: active ? '#0F2E26' : '#7E9C90',
+        badgeBg: active ? '#6FBF9C' : '#12362C'
+      };
+    });
+
+    // ── dashboard
+    const overdue = this.invoices.filter(i => i.status === 'Vencida');
+    const openInv = this.invoices.filter(i => i.status !== 'Pagada' && i.status !== 'Borrador');
+    const receivable = openInv.reduce((a, i) => a + i.mxn, 0);
+    const kpis = [
+      { label: 'Por cobrar', value: this.mx(receivable), delta: '+8.2%', fg: '#14573F', bg: '#E4EFE9', note: openInv.length + ' facturas abiertas · 4 monedas' },
+      { label: 'Vencido', value: this.mx(overdue.reduce((a, i) => a + i.mxn, 0)), delta: '3 clientes', fg: '#94332A', bg: '#F7E5E1', note: 'Mayor atraso: 32 días · Andes Logística' },
+      { label: 'Cobrado 30 días', value: this.mx(505950), delta: '+14.6%', fg: '#14573F', bg: '#E4EFE9', note: 'DSO 31 días · meta 28' },
+      { label: 'Impuestos por enterar', value: this.mx(212840), delta: period, fg: '#85601A', bg: '#F6EFDD', note: 'IVA trasladado menos acreditable' }
+    ];
+    const barData = [[62, 54], [70, 66], [58, 61], [81, 72], [76, 74], [92, 80], [88, 71], [96, 58]];
+    const months = ['feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep'];
+    const bars = barData.map((b, i) => ({ m: months[i], fh: b[0] + '%', ch: b[1] + '%' }));
+    const agingRaw = [
+      { label: 'Corriente', v: 775300, color: '#10402F' },
+      { label: '1 – 15 días', v: 175500, color: '#3E8C6B' },
+      { label: '16 – 30 días', v: 184500, color: '#B3791B' },
+      { label: '31 – 60 días', v: 229000, color: '#A83A2B' }
+    ];
+    const agTotal = agingRaw.reduce((a, x) => a + x.v, 0);
+    const aging = agingRaw.map(x => ({
+      label: x.label, color: x.color, amount: this.mx(x.v),
+      pct: Math.round(x.v / agTotal * 100) + '%', w: (x.v / agTotal * 100) + '%'
+    }));
+    const taxRows = [
+      { label: 'IVA trasladado (16%)', value: this.mx(271252), fg: '#15181A' },
+      { label: 'IVA acreditable', value: '− ' + this.mx(58412), fg: '#1B6B4F' },
+      { label: 'Retenciones efectuadas', value: '− ' + this.mx(0), fg: '#5B6360' },
+      { label: 'ISR provisional', value: this.mx(0), fg: '#5B6360' }
+    ];
+    const attention = [
+      { icon: '!', bg: '#F7E5E1', fg: '#94332A', title: 'F-2034 · Andes Logística', note: '32 días de atraso · sin respuesta', amount: this.mx(169900), go: () => this.setState({ screen: 'detail', open: 'F-2034' }) },
+      { icon: '!', bg: '#F7E5E1', fg: '#94332A', title: 'F-2041 · Grupo Azteca', note: 'Vencida hace 13 días', amount: this.mx(184500), go: () => this.setState({ screen: 'detail', open: 'F-2041' }) },
+      { icon: '◷', bg: '#F6EFDD', fg: '#85601A', title: '3 pagos sin aplicar', note: 'Conciliación pendiente', amount: this.mx(96400), go: this.go('payments') },
+      { icon: '×', bg: '#ECECE6', fg: '#5B6360', title: 'F-2037 borrador 4 días', note: 'Studio Meridiano · sin enviar', amount: this.mx(31900), go: this.go('list') }
+    ];
+    const activity = [
+      { text: 'Pago SPEI aplicado a F-2039 · Vertex Analytics', when: 'hoy 09:41', color: '#1B6B4F' },
+      { text: 'F-2042 creada en borrador por Mariana R.', when: 'hoy 08:12', color: '#3A6EA8' },
+      { text: 'Recordatorio automático enviado · F-2041', when: 'ayer 18:00', color: '#B3791B' },
+      { text: 'Complemento de pago timbrado · F-2035', when: 'ayer 15:27', color: '#1B6B4F' },
+      { text: 'Tasa de sales tax NY actualizada a 8.875%', when: '12 sep', color: '#8C938F' }
+    ];
+
+    // ── invoice list
+    const filterDefs = ['Todas', 'Borrador', 'Enviada', 'Vencida', 'Pagada'];
+    const counted = filterDefs.map(k => ({
+      label: k, count: k === 'Todas' ? this.invoices.length : this.invoices.filter(i => i.status === k).length,
+      go: () => this.setState({ filter: k, sel: [] }),
+      bd: S.filter === k ? '#10402F' : '#DDDDD5',
+      bg: S.filter === k ? '#10402F' : '#fff',
+      fg: S.filter === k ? '#F2F5F2' : '#5B6360'
+    }));
+    const q = S.q.trim().toLowerCase();
+    const filtered = this.invoices.filter(i => (S.filter === 'Todas' || i.status === S.filter) &&
+      (!q || i.client.toLowerCase().indexOf(q) >= 0 || i.id.toLowerCase().indexOf(q) >= 0));
+    const rows = filtered.map(i => {
+      const st = this.statusStyle(i.status);
+      const on = S.sel.indexOf(i.id) >= 0;
+      const bal = i.total - i.paid;
+      return {
+        id: i.id, client: i.client, meta: i.country + ' · ' + i.cur, issued: i.issued, due: i.due,
+        status: i.status, stFg: st[0], stBg: st[1],
+        total: this.f(i.total, i.cur), balance: bal > 0 ? this.f(bal, i.cur) : '—',
+        balFg: bal > 0 ? '#94332A' : '#A8ADA9',
+        dueFg: i.status === 'Vencida' ? '#94332A' : '#5B6360',
+        rowBg: on ? '#F7FBF9' : '#fff',
+        cbBd: on ? '#10402F' : '#CFCFC6', cbBg: on ? '#10402F' : '#fff', check: on ? '✓' : '',
+        open: () => this.setState({ screen: 'detail', open: i.id }),
+        toggle: () => this.setState(s => ({ sel: s.sel.indexOf(i.id) >= 0 ? s.sel.filter(x => x !== i.id) : s.sel.concat([i.id]) }))
+      };
+    });
+    const selTotalMx = this.invoices.filter(i => S.sel.indexOf(i.id) >= 0).reduce((a, i) => a + i.mxn, 0);
+
+    // ── draft
+    const parse = v => { const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; };
+    const lines = S.lines.map(l => ({
+      desc: l.desc, sku: l.sku, qty: l.qty, price: l.price, taxLabel: reg.rate + '%',
+      amount: this.f(parse(l.qty) * parse(l.price), reg.cur),
+      onDesc: e => this.setLine(l.id, 'desc', e.target.value),
+      onSku: e => this.setLine(l.id, 'sku', e.target.value),
+      onQty: e => this.setLine(l.id, 'qty', e.target.value),
+      onPrice: e => this.setLine(l.id, 'price', e.target.value),
+      remove: () => this.setState(s => ({ lines: s.lines.filter(x => x.id !== l.id) }))
+    }));
+    const sub = S.lines.reduce((a, l) => a + parse(l.qty) * parse(l.price), 0);
+    const tax = sub * reg.rate / 100;
+    const ret = showRet ? sub * reg.ret.rate / 100 : 0;
+    const totals = [{ label: 'Subtotal', value: this.f(sub, reg.cur), fg: '#15181A' }, { label: reg.taxLabel, value: this.f(tax, reg.cur), fg: '#15181A' }];
+    if (showRet) totals.push({ label: reg.ret.label, value: '− ' + this.f(ret, reg.cur), fg: '#94332A' });
+    const draftClient = this.clientData[0];
+
+    const regimes = Object.keys(this.regimeData).map(k => ({
+      label: this.regimeData[k].label, go: () => this.setState({ regime: k }),
+      bd: k === rk ? '#10402F' : '#DDDDD5', bg: k === rk ? '#10402F' : '#fff', fg: k === rk ? '#F2F5F2' : '#5B6360'
+    }));
+
+    // ── detail
+    const inv = this.invoices.filter(i => i.id === S.open)[0] || this.invoices[0];
+    const dst = this.statusStyle(inv.status);
+    const dsub = inv.total / 1.16;
+    const detLines = [
+      { desc: 'Implementación módulo de conciliación bancaria', sku: 'SRV-IMP · 81112101', qty: '1.00', price: this.f(dsub * 0.62, inv.cur), tax: '16%', amount: this.f(dsub * 0.62, inv.cur) },
+      { desc: 'Horas de soporte especializado', sku: 'SRV-SUP · 81112500', qty: '24.00', price: this.f(dsub * 0.22 / 24, inv.cur), tax: '16%', amount: this.f(dsub * 0.22, inv.cur) },
+      { desc: 'Licencia anual · 25 usuarios', sku: 'LIC-25 · 81112400', qty: '1.00', price: this.f(dsub * 0.16, inv.cur), tax: '16%', amount: this.f(dsub * 0.16, inv.cur) }
+    ];
+    const detClientObj = this.clientData.filter(c => c.id === inv.cid)[0] || this.clientData[0];
+
+    return {
+      isDash: screen === 'dashboard', isList: screen === 'list', isNew: screen === 'new',
+      isDetail: screen === 'detail', isClients: screen === 'clients', isPayments: screen === 'payments',
+      isExpenses: screen === 'expenses', isRecurring: screen === 'recurring', isReports: screen === 'reports',
+      nav: nav, title: t[0], subtitle: t[1], period: period, q: S.q, toast: S.toast,
+      entityTax: 'RFC ACO210518H45',
+      openEntity: () => this.flash('3 entidades disponibles · Altiva, Altiva US, Nubia Labs'),
+      onSearch: e => this.setState({ q: e.target.value, screen: 'list' }),
+      cyclePeriod: () => this.setState(s => ({ periodIdx: (s.periodIdx + 1) % this.periods.length })),
+      newInvoice: this.go('new'), goList: this.go('list'), goReports: this.go('reports'),
+
+      kpis: kpis, bars: bars, aging: aging, taxRows: taxRows, taxDue: this.mx(212840),
+      attention: attention, activity: activity,
+
+      filters: counted, rows: rows,
+      rowsNote: rows.length + ' de ' + this.invoices.length + ' facturas · ordenado por emisión',
+      filteredTotal: this.mx(filtered.reduce((a, i) => a + i.mxn, 0)),
+      hasSel: S.sel.length > 0, selCount: S.sel.length, selTotal: this.mx(selTotalMx),
+      clearSel: () => this.setState({ sel: [] }),
+
+      regimes: regimes, regimeNote: reg.note, lines: lines, totals: totals,
+      draftTotal: this.f(sub + tax - ret, reg.cur), draftCurrency: reg.cur,
+      draftClient: draftClient.name, draftClientTax: draftClient.taxId, draftInitials: this.initials(draftClient.name),
+      addLine: () => this.setState(s => ({ lines: s.lines.concat([{ id: s.nextId, desc: 'Nuevo concepto', sku: 'SRV-000', qty: '1', price: '0', tax: reg.rate }]), nextId: s.nextId + 1 })),
+      setLine: this.setLine,
+      pickClient: this.go('clients'),
+      emitLabel: rk === 'MX' ? 'Timbrar y enviar' : 'Emitir y enviar',
+      emit: () => { this.flash(rk === 'MX' ? 'F-2042 timbrada · UUID asignado y enviada' : 'F-2042 emitida y enviada'); this.setState({ screen: 'detail', open: 'F-2041' }); },
+      saveDraft: () => this.flash('Borrador F-2042 guardado'),
+      checks: [
+        { icon: '✓', fg: '#1B6B4F', text: 'RFC del receptor validado contra la LCO del SAT' },
+        { icon: '✓', fg: '#1B6B4F', text: 'Régimen fiscal y código postal coinciden con la constancia' },
+        { icon: '✓', fg: '#1B6B4F', text: 'Claves de producto y unidad completas en 3 conceptos' },
+        { icon: '◷', fg: '#B3791B', text: showRet ? 'Retención aplicada: verifica que el cliente sea persona moral' : 'Sin retenciones aplicadas en este régimen' }
+      ],
+      ledger: [
+        { acct: '105', name: 'Clientes nacionales', amount: this.f(sub + tax - ret, reg.cur), fg: '#15181A' },
+        { acct: '401', name: 'Ingresos por servicios', amount: '− ' + this.f(sub, reg.cur), fg: '#1B6B4F' },
+        { acct: '209', name: 'IVA trasladado no cobrado', amount: '− ' + this.f(tax, reg.cur), fg: '#1B6B4F' }
+      ],
+
+      detId: inv.id, detStatus: inv.status, detStFg: dst[0], detStBg: dst[1],
+      detAge: inv.status === 'Vencida' ? 'Vencida hace 13 días' : 'Emitida el ' + inv.issued,
+      detUuidLabel: inv.country === 'MX' ? 'UUID fiscal' : 'Folio fiscal',
+      detUuid: 'a4f21e9c-7b03-4d5a-9e18-cc0142f7b8d1',
+      detClient: inv.client, detClientTax: detClientObj.taxId, detClientAddr: detClientObj.addr,
+      detMeta: [
+        { label: 'Emisión', value: inv.issued + ' 2026' },
+        { label: 'Vencimiento', value: inv.due + ' 2026' },
+        { label: 'Condiciones', value: detClientObj.terms },
+        { label: 'Moneda', value: inv.cur + ' · T.C. 18.04' }
+      ],
+      detLines: detLines, detCurrency: inv.cur,
+      detTotals: [
+        { label: 'Subtotal', value: this.f(dsub, inv.cur), fg: '#15181A' },
+        { label: 'IVA 16%', value: this.f(inv.total - dsub, inv.cur), fg: '#15181A' },
+        { label: 'Retención ISR 10%', value: '− ' + this.f(0, inv.cur), fg: '#5B6360' },
+        { label: 'Pagos aplicados', value: '− ' + this.f(inv.paid, inv.cur), fg: '#1B6B4F' }
+      ],
+      detTotal: this.f(inv.total, inv.cur), detBalance: this.f(inv.total - inv.paid, inv.cur),
+      detEventCount: 7,
+      timeline: [
+        { title: 'Creada', detail: 'Mariana Robles · desde plantilla Consultoría', when: '02 sep 2026 · 10:14', dot: '#C7CCC8', ring: '#F0F0EA' },
+        { title: 'Timbrada por el PAC', detail: 'UUID a4f21e9c… · sello verificado', when: '02 sep 2026 · 10:15', dot: '#1B6B4F', ring: '#E4EFE9' },
+        { title: 'Enviada', detail: 'cuentas.pagar@azteca.mx, jrivas@azteca.mx', when: '02 sep 2026 · 10:16', dot: '#3A6EA8', ring: '#E7EDF5' },
+        { title: 'Vista por el cliente', detail: '4 aperturas · último acceso desde CDMX', when: '04 sep 2026 · 16:02', dot: '#3A6EA8', ring: '#E7EDF5' },
+        { title: 'Recordatorio automático', detail: 'Regla “3 días antes del vencimiento”', when: '14 sep 2026 · 09:00', dot: '#B3791B', ring: '#F6EFDD' },
+        { title: 'Vencida', detail: 'Pasó a antigüedad 1–15 días', when: '18 sep 2026 · 00:01', dot: '#A83A2B', ring: '#F7E5E1' },
+        { title: 'Escalada a cobranza', detail: 'Asignada a Luis Ferrer · llamada agendada', when: '20 sep 2026 · 11:30', dot: '#A83A2B', ring: '#F7E5E1' }
+      ],
+      payBehavior: [
+        { label: 'Días promedio de pago', value: '38 días', fg: '#94332A' },
+        { label: 'Facturas pagadas a tiempo', value: '6 de 11', fg: '#85601A' },
+        { label: 'Saldo total del cliente', value: this.mx(detClientObj.balance), fg: '#15181A' }
+      ],
+      remind: () => this.flash('Recordatorio enviado a 2 contactos'),
+      pay: () => this.flash('Pago registrado · complemento en cola de timbrado'),
+
+      clients: this.clientData.map(c => ({
+        name: c.name, taxId: c.taxId, country: c.country, terms: c.terms,
+        initials: this.initials(c.name), avBg: c.id === S.client ? '#10402F' : '#EDEDE6', avFg: c.id === S.client ? '#F2F5F2' : '#5B6360',
+        avgDays: c.avgDays + ' d', daysFg: c.avgDays > 35 ? '#94332A' : '#5B6360',
+        balance: c.balance > 0 ? this.mx(c.balance) : '—', open: c.open || '—',
+        bg: c.id === S.client ? '#F7FBF9' : '#fff',
+        select: () => this.setState({ client: c.id })
+      })),
+      selClientName: (this.clientData.filter(c => c.id === S.client)[0] || this.clientData[0]).name,
+      selClientTax: (this.clientData.filter(c => c.id === S.client)[0] || this.clientData[0]).taxId,
+      selClientInitials: this.initials((this.clientData.filter(c => c.id === S.client)[0] || this.clientData[0]).name),
+      selClientStats: [
+        { label: 'Saldo abierto', value: this.mx((this.clientData.filter(c => c.id === S.client)[0] || this.clientData[0]).balance), fg: '#15181A' },
+        { label: 'Días prom. pago', value: (this.clientData.filter(c => c.id === S.client)[0] || this.clientData[0]).avgDays + ' d', fg: '#94332A' },
+        { label: 'Facturado 12 m', value: this.mx(2184300), fg: '#15181A' },
+        { label: 'Límite de crédito', value: this.mx(400000), fg: '#5B6360' }
+      ],
+      selClientInvoices: this.invoices.filter(i => i.cid === S.client).map(i => ({
+        id: i.id, due: 'vence ' + i.due, total: this.f(i.total, i.cur),
+        fg: i.status === 'Vencida' ? '#94332A' : '#8C938F',
+        open: () => this.setState({ screen: 'detail', open: i.id })
+      })),
+
+      payKpis: [
+        { label: 'Cobrado en el mes', value: this.mx(505950), fg: '#15181A', note: '14 pagos · 4 métodos' },
+        { label: 'Sin aplicar', value: this.mx(96400), fg: '#85601A', note: '3 depósitos por conciliar' },
+        { label: 'DSO', value: '31 d', fg: '#15181A', note: 'Meta 28 días · −3 vs. agosto' },
+        { label: 'Comisiones', value: this.mx(7840), fg: '#5B6360', note: 'Tarjeta 2.9% + $3.00' }
+      ],
+      payments: [
+        { date: '14 sep', client: 'Vertex Analytics LLC', method: 'ACH', ref: 'ACH-77120', applied: 'F-2039', appFg: '#14573F', appBg: '#E4EFE9', amount: this.f(18400, 'USD') },
+        { date: '12 sep', client: 'Cafetalera Santa Rosa', method: 'SPEI', ref: 'SPEI-4419023', applied: 'F-2038', appFg: '#14573F', appBg: '#E4EFE9', amount: this.mx(74200) },
+        { date: '11 sep', client: 'Despacho Rivas y Asoc.', method: 'SPEI', ref: 'SPEI-4410882', applied: 'F-2035 · parcial', appFg: '#85601A', appBg: '#F6EFDD', amount: this.mx(60000) },
+        { date: '10 sep', client: 'Depósito no identificado', method: 'Transferencia', ref: 'BBVA-99312', applied: 'Sin aplicar', appFg: '#94332A', appBg: '#F7E5E1', amount: this.mx(42300) },
+        { date: '08 sep', client: 'Praxis Salud', method: 'Tarjeta', ref: 'ch_3PqL8', applied: 'F-2033', appFg: '#14573F', appBg: '#E4EFE9', amount: this.mx(58300) },
+        { date: '05 sep', client: 'Tienda Kuna', method: 'PSE', ref: 'PSE-20194', applied: 'Sin aplicar', appFg: '#94332A', appBg: '#F7E5E1', amount: this.f(12600000, 'COP') },
+        { date: '02 sep', client: 'Molino del Valle', method: 'SPEI', ref: 'SPEI-4398210', applied: 'F-2031', appFg: '#14573F', appBg: '#E4EFE9', amount: this.mx(41250) }
+      ],
+
+      expenses: [
+        { date: '13 sep', vendor: 'Amazon Web Services', doc: 'CFDI · A-99120', category: 'Infraestructura cloud', deductible: 'Sí', dedFg: '#14573F', dedBg: '#E4EFE9', amount: this.mx(84210), vat: this.mx(13473) },
+        { date: '12 sep', vendor: 'Oficinas Reforma 296', doc: 'CFDI · R-0912', category: 'Arrendamiento', deductible: 'Sí', dedFg: '#14573F', dedBg: '#E4EFE9', amount: this.mx(126000), vat: this.mx(20160) },
+        { date: '10 sep', vendor: 'Nómina quincenal', doc: 'Recibos · 14', category: 'Sueldos y salarios', deductible: 'Sí', dedFg: '#14573F', dedBg: '#E4EFE9', amount: this.mx(412800), vat: '—' },
+        { date: '09 sep', vendor: 'Viáticos · L. Ferrer', doc: 'Sin XML', category: 'Viajes y representación', deductible: 'Parcial', dedFg: '#85601A', dedBg: '#F6EFDD', amount: this.mx(18940), vat: '—' },
+        { date: '07 sep', vendor: 'Contpaqi Licencias', doc: 'CFDI · C-4410', category: 'Software', deductible: 'Sí', dedFg: '#14573F', dedBg: '#E4EFE9', amount: this.mx(29800), vat: this.mx(4768) },
+        { date: '04 sep', vendor: 'Uber Eats', doc: 'Sin XML', category: 'Consumos', deductible: 'No', dedFg: '#94332A', dedBg: '#F7E5E1', amount: this.mx(2410), vat: '—' },
+        { date: '02 sep', vendor: 'Despacho Lex Fiscal', doc: 'CFDI · L-1182', category: 'Honorarios', deductible: 'Sí', dedFg: '#14573F', dedBg: '#E4EFE9', amount: this.mx(96000), vat: this.mx(15360) }
+      ],
+      expCats: [
+        { label: 'Sueldos y salarios', amount: this.mx(412800), w: '100%' },
+        { label: 'Arrendamiento', amount: this.mx(126000), w: '31%' },
+        { label: 'Honorarios', amount: this.mx(96000), w: '23%' },
+        { label: 'Infraestructura cloud', amount: this.mx(84210), w: '20%' },
+        { label: 'Software', amount: this.mx(29800), w: '7%' }
+      ],
+
+      recKpis: [
+        { label: 'MRR facturado', value: this.mx(486300), note: '18 suscripciones · 3 monedas' },
+        { label: 'Próximos 7 días', value: '6 emisiones', note: 'Timbrado automático 06:00' },
+        { label: 'Fallas de cobro', value: '2', note: 'Tarjeta rechazada · reintento en 48 h' }
+      ],
+      recurring: [
+        { name: 'Plataforma · Plan Escala', plan: 'anual, 25 usuarios', client: 'Loop Commerce Inc', cadence: 'Anual', next: '01 ene 2027', status: 'Activa', stFg: '#14573F', stBg: '#E4EFE9', amount: this.f(22300, 'USD') },
+        { name: 'Soporte administrado', plan: '40 h/mes', client: 'Grupo Azteca Retail', cadence: 'Mensual · día 1', next: '01 oct 2026', status: 'Activa', stFg: '#14573F', stBg: '#E4EFE9', amount: this.mx(96000) },
+        { name: 'Licencias Nube', plan: '120 asientos', client: 'Nubank Colombia SAS', cadence: 'Mensual · día 5', next: '05 oct 2026', status: 'Activa', stFg: '#14573F', stBg: '#E4EFE9', amount: this.f(18400000, 'COP') },
+        { name: 'Monitoreo fiscal', plan: 'por entidad', client: 'Despacho Rivas y Asoc.', cadence: 'Trimestral', next: '01 nov 2026', status: 'Pausada', stFg: '#85601A', stBg: '#F6EFDD', amount: this.mx(54000) },
+        { name: 'Conciliación bancaria', plan: '3 cuentas', client: 'Molino del Valle', cadence: 'Mensual · día 15', next: '15 oct 2026', status: 'Cobro fallido', stFg: '#94332A', stBg: '#F7E5E1', amount: this.mx(13750) }
+      ],
+
+      jurisdictions: [
+        { name: 'México', tax: 'IVA trasladado 16%', rate: '16.00%', base: this.mx(1695325), collected: this.mx(271252), due: this.mx(212840), fg: '#15181A' },
+        { name: 'Colombia', tax: 'IVA DIAN 19%', rate: '19.00%', base: this.mx(257500), collected: this.mx(48925), due: this.mx(48925), fg: '#15181A' },
+        { name: 'Nueva York, EE. UU.', tax: 'State + local sales tax', rate: '8.875%', base: this.mx(506700), collected: this.mx(44970), due: this.mx(44970), fg: '#15181A' },
+        { name: 'California, EE. UU.', tax: 'District sales tax', rate: '8.625%', base: this.mx(401400), collected: this.mx(34620), due: this.mx(34620), fg: '#15181A' },
+        { name: 'Chile', tax: 'IVA SII 19%', rate: '19.00%', base: this.mx(169900), collected: this.mx(32281), due: this.mx(0), fg: '#8C938F' }
+      ],
+      pnl: [
+        { label: 'Ingresos por servicios', value: this.mx(2184300), font: '400', labelFg: '#5B6360', fg: '#15181A', pad: '0px', rule: 'none' },
+        { label: 'Costo de servicio', value: '− ' + this.mx(742100), font: '400', labelFg: '#5B6360', fg: '#15181A', pad: '9px', rule: '1px solid #F0F0EA' },
+        { label: 'Utilidad bruta', value: this.mx(1442200), font: '600', labelFg: '#15181A', fg: '#15181A', pad: '0px', rule: 'none' },
+        { label: 'Gastos de operación', value: '− ' + this.mx(770160), font: '400', labelFg: '#5B6360', fg: '#15181A', pad: '9px', rule: '1px solid #F0F0EA' },
+        { label: 'Utilidad antes de impuestos', value: this.mx(672040), font: '600', labelFg: '#15181A', fg: '#10402F', pad: '0px', rule: 'none' }
+      ],
+      savedReports: [
+        { name: 'Antigüedad de saldos detallada', freq: 'semanal' },
+        { name: 'IVA acreditable vs. trasladado', freq: 'mensual' },
+        { name: 'Ingresos por cliente y moneda', freq: 'mensual' },
+        { name: 'Conciliación bancaria', freq: 'diaria' },
+        { name: 'Papel de trabajo ISR provisional', freq: 'mensual' }
+      ]
+    };
+  }
+
+  setLine = (id, field, value) => {
+    this.setState(s => ({ lines: s.lines.map(l => l.id === id ? Object.assign({}, l, { [field]: value }) : l) }));
+  };
+}
+</script>
+</body>
+</html>

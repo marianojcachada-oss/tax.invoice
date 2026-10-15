@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────
+   Sistema de diseño v2 — basado en el archivo de diseño que trajo el
+   usuario (Claude Design, paleta "libro contable" verde bosque + crema).
+   Dos tipografías: Instrument Sans para texto de interfaz, IBM Plex Mono
+   para números, códigos, y las etiquetas en mayúscula de encabezados de
+   columna — con cifras tabulares para que los reportes alineen en
+   columna. El sidebar es SIEMPRE verde oscuro (no cambia con el modo
+   claro/oscuro, es parte fija de la marca, como en el diseño de
+   referencia); el resto de la app sí responde al modo claro/oscuro.
+   Esto es puramente estético — no toca estructura de datos ni moneda.
+   ───────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Modo claro (valores por defecto) */
+  --color-paper: #f4f4f0;
+  --color-surface: #ffffff;
+  --color-surface-2: #fafaf7;
+  --color-ink: #15181a;
+  --color-ink-soft: #5b6360;
+  --color-ink-faint: #6b726e;
+  --color-line: #e3e3dc;
+  --color-line-soft: #f0f0ea;
+  --color-ph: #727874;
+
+  --color-accent: #10402f;
+  --color-accent-dark: #1b6b4f;
+  --color-danger: #a83a2b;
+  --color-danger-dark: #94332a;
+  --color-success: #1b6b4f;
+  --color-success-bg: #e7f0eb;
+  --color-on-accent: #ffffff;
+
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Modo oscuro: se activa con la clase .dark en <html>. El sidebar NO usa
+   estas variables (queda fijo, ver Sidebar.tsx) — esto es solo para el
+   resto de la app. */
+.dark {
+  --color-paper: #16181a;
+  --color-surface: #1e211f;
+  --color-surface-2: #242826;
+  --color-ink: #edeee9;
+  --color-ink-soft: #9ba39d;
+  --color-ink-faint: #8a928c;
+  --color-line: #303430;
+  --color-line-soft: #242826;
+  --color-ph: #8a918b;
+
+  --color-accent: #6fbf9c;
+  --color-accent-dark: #8ed4b5;
+  --color-danger: #e2685a;
+  --color-danger-dark: #eb8478;
+  --color-success: #6fbf9c;
+  --color-success-bg: #1b3a2c;
+  --color-on-accent: #0c1f17;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Números de dinero, códigos de cliente/factura y cantidades: siempre en
+   IBM Plex Mono con cifras tabulares, para que alineen en columna como
+   en un libro mayor real. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Etiquetas en mayúscula (encabezados de columna, labels de campo) —
+   mono, chicas, con tracking amplio, tal como en el diseño de referencia. */
+.th-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Foco visible para teclado en todo control interactivo */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
+
+@layer components {
+  .panel {
+    @apply bg-surface border border-line rounded-[6px];
+  }
+  .btn-primary {
+    @apply bg-ink text-paper px-3 py-1.5 text-sm font-medium rounded-[5px] hover:opacity-90 transition-colors;
+  }
+  .btn-accent {
+    @apply bg-accent text-on-accent px-3 py-1.5 text-sm font-medium rounded-[5px] hover:bg-accent-dark transition-colors min-h-[28px];
+  }
+  .btn-outline {
+    @apply border border-line px-3 py-1.5 text-sm font-medium rounded-[5px] text-ink-soft min-h-[28px] hover:border-accent hover:text-accent transition-colors;
+  }
+  .chip {
+    @apply border border-line rounded-[4px] px-2 py-1 text-xs min-h-[24px] inline-flex items-center gap-1.5;
+  }
+  .chip-accent {
+    @apply border border-accent text-accent rounded-[4px] px-2 py-1 text-xs min-h-[24px] inline-flex items-center gap-1.5;
+  }
+  .chip-danger {
+    @apply text-danger-dark rounded-[4px] px-2 py-1 text-xs min-h-[24px] inline-flex items-center gap-1.5;
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  }
+  .chip-success {
+    @apply text-success rounded-[4px] px-2 py-1 text-xs min-h-[24px] inline-flex items-center gap-1.5;
+    background: var(--color-success-bg);
+  }
+}
+
+/* Impresión / exportar a PDF: solo se ve el documento imprimible (factura o
+   recibo), sin el resto de la app (sidebar, overlay del modal, botones,
+   etc). Ese documento impreso queda siempre en tema claro (papel real). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable,
+  .printable * {
+    visibility: visible;
+  }
+  .printable {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* El sidebar es siempre oscuro: su foco usa menta, no el acento del tema */
+.sb-link:focus-visible { outline: 2px solid #6fbf9c; outline-offset: -2px; }

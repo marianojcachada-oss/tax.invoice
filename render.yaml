@@ -1,0 +1,56 @@
+# Blueprint de Render para tax.invoice: un servicio para la API (Node) y un sitio
+# estático para el front. La base de datos vive en Supabase (DATABASE_URL).
+# Los valores marcados sync: false se cargan a mano en el panel de Render.
+services:
+  - type: web
+    name: tax-invoice-api
+    runtime: node
+    rootDir: server
+    plan: starter            # el plan free se duerme y frena la lectura automática de mails
+    buildCommand: npm install
+    startCommand: npm run start:prod
+    healthCheckPath: /api/salud
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false          # la URL del sitio estático, ej. https://tax-invoice.onrender.com
+      - key: MS_TENANT_ID
+        sync: false
+      - key: MS_CLIENT_ID
+        sync: false
+      - key: MS_CLIENT_SECRET
+        sync: false
+      - key: MS_MAILBOX
+        sync: false
+      - key: MS_CARPETA
+        value: Inbox
+      - key: MS_TIPO
+        sync: false
+      - key: MS_POLL_SEGUNDOS
+        value: 60
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+
+  - type: web
+    name: tax-invoice
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: VITE_API_URL
+        sync: false          # la URL de la API + /api, ej. https://tax-invoice-api.onrender.com/api
+    routes:
+      - type: rewrite        # el front es una SPA: cualquier ruta devuelve index.html
+        source: /*
+        destination: /index.html

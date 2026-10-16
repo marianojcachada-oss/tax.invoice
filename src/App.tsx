@@ -13,6 +13,7 @@ import { Expenses } from './pages/Expenses';
 import { Reports } from './pages/Reports';
 import { Audit } from './pages/Audit';
 import { Settings } from './pages/Settings';
+import { Help } from './pages/Help';
 
 export default function App() {
   return (
@@ -69,6 +70,7 @@ function AuthGate() {
           <Route path="/reportes" element={<Reports />} />
           <Route path="/auditoria" element={<Audit />} />
           <Route path="/configuracion" element={<Settings />} />
+          <Route path="/ayuda" element={<Help />} />
         </Routes>
       </Layout>
     </BrowserRouter>

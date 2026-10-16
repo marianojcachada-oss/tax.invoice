@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sistema de Cobros (sin nombre todavia)
 
 Prototipo funcional (React + TypeScript + Vite + Tailwind v4).
@@ -733,3 +734,6 @@ automatizadas nuevas — 14 en total en el servidor, todas verdes.
 
 ## Pagos ingresados por mail (Outlook)
 Pestaña **Cobros → Pagos ingresados por mail** (solo admin): lee las notificaciones de Zelle del buzón de Outlook, las lista con remitente, descripción y monto, y permite asignarlas a una unidad activa (desplegable con búsqueda). Configuración en `server/OUTLOOK.md`.
+=======
+# tax.invoice
+>>>>>>> a6fe2309e24c8afbe6c5c6e1707ce536646ed295

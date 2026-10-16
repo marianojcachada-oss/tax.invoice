@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { HelpCircle, Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
@@ -22,7 +23,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <GlobalSearch />
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <ThemeToggle />
-            <HelpCircle size={17} className="text-ink-faint hidden sm:block" />
+            <Link to="/ayuda" aria-label="Ayuda" title="Ayuda" className="text-ink-faint hover:text-accent hidden sm:flex p-1.5"><HelpCircle size={17} /></Link>
           </div>
         </header>
         <main className="flex-1 min-w-0 bg-paper overflow-x-hidden">{children}</main>

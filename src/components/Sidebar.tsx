@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useDataStore } from '../data/DataContext';
 import { Wordmark } from './Wordmark';
@@ -46,7 +46,13 @@ const GRUPOS: { titulo: string | null; items: Item[] }[] = [
       { to: '/auditoria', label: 'Auditoría', icon: History, soloAdmin: true },
     ],
   },
-  { titulo: 'Sistema', items: [{ to: '/configuracion', label: 'Configuración', icon: Settings, soloAdmin: true }] },
+  {
+    titulo: 'Sistema',
+    items: [
+      { to: '/configuracion', label: 'Configuración', icon: Settings, soloAdmin: true },
+      { to: '/ayuda', label: 'Ayuda', icon: HelpCircle },
+    ],
+  },
 ];
 
 export function Sidebar({ abierto, onClose }: { abierto: boolean; onClose: () => void }) {

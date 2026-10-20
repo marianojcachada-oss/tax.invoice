@@ -509,6 +509,32 @@ export const TEMAS: TemaAyuda[] = [
     ruta: '/reportes',
   },
 
+  {
+    id: 'informes-contables',
+    seccion: 'Reportes',
+    titulo: 'Informes contables: A/R Aging, Profit and Loss y Balance Sheet',
+    resumen: 'Los mismos tres informes que usa el estudio contable en QuickBooks, con los mismos nombres, cuentas y totales, para exportar a Excel, CSV o PDF.',
+    pasos: [
+      'Entrá a Informes contables (menú Análisis).',
+      'Elegí el informe: A/R Aging Summary Report, Profit and Loss o Balance Sheet.',
+      'Poné la fecha (el Profit and Loss lleva Desde y Hasta) y mirá la vista previa.',
+      'Bajalo con los botones Excel, CSV o PDF. El Excel trae las mismas fórmulas y formatos que el de QuickBooks.',
+      'Antes de usarlos, en "Ajustes de contabilidad" cargá los saldos de arranque (Balance Sheet y Profit and Loss de QuickBooks a la misma fecha) y revisá a qué cuenta va cada cosa.',
+      'Para lo que no sale de la app (nómina, depreciación, retiros del socio) cargá un asiento manual.',
+    ],
+    ejemplos: [
+      'El estudio pide el Balance Sheet al 31 de diciembre: elegís Balance Sheet, ponés 12/31, bajás el Excel y se lo mandás.',
+      'Querés comprobar que todo cuadra: en Ajustes tocá "Verificar que cuadra" y compará el A/R del libro con el A/R Aging.',
+    ],
+    notas: [
+      'Los informes solo se pueden emitir desde la fecha de corte (la de los archivos de QuickBooks); antes de esa fecha los datos siguen en QuickBooks.',
+      'Solo administradores.',
+    ],
+    palabras: ['contabilidad', 'balance', 'balance sheet', 'profit and loss', 'pyg', 'p&l', 'a/r aging', 'aging', 'estado de resultados', 'año fiscal', 'quickbooks', 'contador', 'estudio contable', 'asiento', 'plan de cuentas', 'exportar', 'excel', 'pdf', 'csv', 'informe'],
+    ruta: '/informes',
+    soloAdmin: true,
+  },
+
   // ───────────────────────── Administración ─────────────────────────
   {
     id: 'usuarios',

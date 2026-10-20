@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle, FileSpreadsheet } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useDataStore } from '../data/DataContext';
 import { Wordmark } from './Wordmark';
@@ -43,6 +43,7 @@ const GRUPOS: { titulo: string | null; items: Item[] }[] = [
     titulo: 'Análisis',
     items: [
       { to: '/reportes', label: 'Reportes', icon: BarChart3 },
+      { to: '/informes', label: 'Informes contables', icon: FileSpreadsheet, soloAdmin: true },
       { to: '/auditoria', label: 'Auditoría', icon: History, soloAdmin: true },
     ],
   },

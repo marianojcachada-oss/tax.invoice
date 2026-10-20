@@ -286,6 +286,53 @@ ALTER TABLE pagos_email ADD COLUMN IF NOT EXISTS referencia TEXT;
 ALTER TABLE pagos_email ADD COLUMN IF NOT EXISTS resultado TEXT NOT NULL DEFAULT 'aprobado';
 ALTER TABLE pagos_email ADD COLUMN IF NOT EXISTS motivo_rechazo TEXT;
 
+-- ─── Contabilidad (informes estilo QuickBooks) ───────────────────────
+-- Plan de cuentas (el que envió el estudio contable). "mostrar_en_cero":
+-- el Balance Sheet de QuickBooks lista algunas cuentas aunque estén en 0.
+CREATE TABLE IF NOT EXISTS plan_cuentas (
+  numero TEXT PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  tipo TEXT NOT NULL,
+  detalle TEXT,
+  padre TEXT,
+  activa BOOLEAN NOT NULL DEFAULT true,
+  mostrar_en_cero BOOLEAN NOT NULL DEFAULT false,
+  cero_con_signo BOOLEAN NOT NULL DEFAULT false -- en 0 y sin movimientos QuickBooks lo muestra como $0.00
+);
+
+ALTER TABLE plan_cuentas ADD COLUMN IF NOT EXISTS cero_con_signo BOOLEAN NOT NULL DEFAULT false;
+
+-- Saldos de arranque (cargados desde el Balance Sheet y el Profit and Loss
+-- de QuickBooks a la fecha de corte). Siempre en el signo en que se muestran
+-- en el informe (activos +, pasivos +, ingresos +, gastos +).
+CREATE TABLE IF NOT EXISTS saldos_iniciales (
+  cuenta TEXT PRIMARY KEY REFERENCES plan_cuentas(numero),
+  monto INTEGER NOT NULL
+);
+
+-- Asientos manuales (nómina, depreciación, retiros del socio, ajustes...).
+CREATE TABLE IF NOT EXISTS asientos (
+  id TEXT PRIMARY KEY,
+  fecha TEXT NOT NULL,
+  descripcion TEXT NOT NULL,
+  creado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS asiento_lineas (
+  id SERIAL PRIMARY KEY,
+  asiento_id TEXT NOT NULL REFERENCES asientos(id) ON DELETE CASCADE,
+  cuenta TEXT NOT NULL REFERENCES plan_cuentas(numero),
+  debe INTEGER NOT NULL DEFAULT 0,
+  haber INTEGER NOT NULL DEFAULT 0
+);
+
+-- A qué cuenta contable va cada cosa de la app.
+ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS cuenta_ingreso TEXT;
+ALTER TABLE cuentas ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
+-- Ajustes de contabilidad (JSON): fecha de corte, cuentas por método de pago, etc.
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS contab_config TEXT;
+
 -- Seguridad en Supabase: sus tablas quedan expuestas por una API REST pública
 -- (con la clave "anon") salvo que tengan Row Level Security activado. El servidor
 -- se conecta como dueño de la base y no se ve afectado; con RLS activo y SIN

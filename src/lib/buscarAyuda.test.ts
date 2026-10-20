@@ -18,7 +18,7 @@ describe('contenido de la ayuda', () => {
     }
   });
   it('las rutas de pantalla existen en la app', () => {
-    const validas = ['/clientes', '/cobros', '/proveedores', '/gastos', '/cuentas', '/reportes', '/auditoria', '/configuracion'];
+    const validas = ['/clientes', '/cobros', '/proveedores', '/gastos', '/cuentas', '/reportes', '/informes', '/auditoria', '/configuracion'];
     for (const t of TEMAS) if (t.ruta) expect(validas, t.id).toContain(t.ruta);
   });
 });

@@ -19,6 +19,7 @@ import { adminRouter } from './routes/admin.js';
 import { historialRouter } from './routes/historial.js';
 import { catalogoFeesRouter } from './routes/catalogoFees.js';
 import { pagosEmailRouter } from './routes/pagosEmail.js';
+import { contabilidadRouter } from './routes/contabilidad.js';
 import { requiereSesion } from './auth.js';
 
 export const app = express();
@@ -52,6 +53,8 @@ app.use('/api/admin', requiereSesion, adminRouter);
 app.use('/api/facturas', requiereSesion, historialRouter);
 app.use('/api/catalogo-fees', requiereSesion, catalogoFeesRouter);
 app.use('/api/pagos-email', requiereSesion, pagosEmailRouter);
+
+app.use('/api/contabilidad', requiereSesion, contabilidadRouter);
 
 app.get('/api/salud', (req, res) => res.json({ ok: true, hora: new Date().toISOString() }));
 

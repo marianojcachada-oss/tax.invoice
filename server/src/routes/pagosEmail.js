@@ -139,6 +139,9 @@ pagosEmailRouter.post('/:id/aplicar', requiereAdmin, async (req, res) => {
     }
     excedente = resto;
     if (excedente > 0) {
+      // El pago queda por lo que se aplicó a facturas; el resto vive en la nota de crédito
+      // (mismo criterio que el cobro manual), así la contabilidad no cuenta el excedente dos veces.
+      await tx.prepare('UPDATE pagos SET monto = ? WHERE id = ?').run(fila.monto - excedente, pagoId);
       const nNc = ((await tx.prepare('SELECT MAX(numero) as n FROM notas_credito').get()).n ?? 5000) + 1;
       await tx
         .prepare(

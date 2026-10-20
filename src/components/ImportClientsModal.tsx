@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { useDataStore } from '../data/DataContext';
 import { formatoMoneda } from '../lib/aging';
 import { Pagination } from './Pagination';
+import { mapearContacto } from '../lib/qbClientes';
 
 // Nota de seguridad: "xlsx" (SheetJS) tiene dos vulnerabilidades
 // conocidas y sin parche en su versión de npm (prototype pollution y
@@ -26,6 +27,8 @@ interface FilaImportada {
   motivoEstado?: string; // por qué quedó inactivo (informativo, no afecta si se importa o no)
   seleccionada: boolean;
   motivoSugerido?: string;
+  nombreQb?: string; // nombre exacto en QuickBooks (Customer Contact List)
+  notas?: string;
 }
 
 const COLUMNAS_PLANTILLA_PROPIA = ['codigo', 'numero', 'nombre', 'telefonos', 'email', 'direccion', 'licencia', 'cuota_semanal'];
@@ -54,6 +57,27 @@ function descargarPlantilla() {
 function num(valor: unknown): number {
   const n = Number(String(valor ?? '').replace(/[^0-9.-]/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+function mapearFilaContacto(fila: Record<string, string>): FilaImportada {
+  const c = mapearContacto(fila);
+  return {
+    codigo: c.codigo,
+    numero: c.numero,
+    nombre: c.nombre,
+    telefonos: c.telefonos,
+    email: c.email,
+    direccion: c.direccion,
+    licenciaInfo: '',
+    cuotaSemanal: 0,
+    saldoInicial: 0,
+    estado: c.estado,
+    motivoEstado: c.motivoEstado,
+    seleccionada: Boolean(c.nombreQb) && !c.esNoCliente,
+    motivoSugerido: c.esNoCliente ? 'Forma de pago o cuenta del banco, no un cliente' : !c.nombreQb ? 'Falta el nombre' : undefined,
+    nombreQb: c.nombreQb,
+    notas: c.notas,
+  };
 }
 
 function mapearFila(fila: Record<string, string>, esQuickBooks: boolean): FilaImportada {
@@ -132,12 +156,13 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
   const { configuracion, importarClientesLote } = useDataStore();
   const [filas, setFilas] = useState<FilaImportada[] | null>(null);
   const [esQuickBooks, setEsQuickBooks] = useState(false);
+  const [esContactos, setEsContactos] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [pagina, setPagina] = useState(1);
   const [pageSize] = useState(50);
   const [importando, setImportando] = useState(false);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<{ importados: number; conSaldoInicial: number } | null>(null);
+  const [resultado, setResultado] = useState<{ importados: number; conSaldoInicial: number; omitidos: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleArchivo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -149,15 +174,22 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
       try {
         const wb = XLSX.read(ev.target?.result, { type: 'binary' });
         const hoja = wb.Sheets[wb.SheetNames[0]];
-        const datos = XLSX.utils.sheet_to_json<Record<string, string>>(hoja, { defval: '' });
+        // El Customer Contact List trae 3 filas de título antes del encabezado: se busca la fila "Customer full name".
+        const crudas = XLSX.utils.sheet_to_json<unknown[]>(hoja, { header: 1, defval: '' });
+        const filaEnc = crudas.findIndex((f) => f.some((c) => String(c).trim() === 'Customer full name'));
+        const datos = XLSX.utils
+          .sheet_to_json<Record<string, string>>(hoja, { defval: '', range: filaEnc > 0 ? filaEnc : 0 })
+          .filter((f) => !String(Object.values(f)[0] ?? '').startsWith(' ')); // pie con la fecha de exportación
         if (datos.length === 0) {
           setErrorArchivo('El archivo no tiene filas de datos.');
           return;
         }
         const encabezados = Object.keys(datos[0]);
-        const pareceQuickBooks = encabezados.includes('Name') && (encabezados.includes('Open balance') || encabezados.includes('Phone'));
+        const pareceContactos = encabezados.includes('Customer full name');
+        const pareceQuickBooks = !pareceContactos && encabezados.includes('Name') && (encabezados.includes('Open balance') || encabezados.includes('Phone'));
+        setEsContactos(pareceContactos);
         setEsQuickBooks(pareceQuickBooks);
-        setFilas(datos.map((f) => mapearFila(f, pareceQuickBooks)));
+        setFilas(datos.map((f) => (pareceContactos ? mapearFilaContacto(f) : mapearFila(f, pareceQuickBooks))));
       } catch {
         setErrorArchivo('No se pudo leer el archivo. Probá exportarlo de nuevo desde QuickBooks.');
       }
@@ -187,7 +219,9 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
     if (!filas) return;
     setImportando(true);
     const paraEnviar = seleccionadas.map((f, i) => ({
-      codigo: f.codigo || `SINCODIGO-${i + 1}`,
+      nombreQb: f.nombreQb,
+      notas: f.notas || undefined,
+      codigo: f.nombreQb ? f.codigo : f.codigo || `SINCODIGO-${i + 1}`,
       numero: f.numero,
       nombre: f.nombre,
       telefonos: f.telefonos,
@@ -216,6 +250,7 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
             <div className="text-lg font-semibold mb-1">Listo ✓</div>
             <div className="text-ink-soft text-sm">
               Se importaron <b>{resultado.importados}</b> clientes.
+              {resultado.omitidos > 0 && <> Se omitieron {resultado.omitidos} que ya estaban cargados (mismo nombre de QuickBooks).</>}
               {resultado.conSaldoInicial > 0 && (
                 <> A {resultado.conSaldoInicial} se les generó una factura de apertura con el saldo que ya tenían en QuickBooks.</>
               )}
@@ -225,7 +260,10 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
         ) : !filas ? (
           <div className="p-4">
             <div className="text-sm text-ink-soft mb-3">
-              Se puede subir directo el archivo que exporta QuickBooks (Ventas → Clientes → Exportar),
+              Lo ideal es el reporte <b>Customer Contact List</b> de QuickBooks (Informes → Customer Contact List → Excel): trae
+              nombre, teléfonos, email y direcciones, y se carga tal cual (el nombre completo de QuickBooks queda guardado para
+              después cruzar el historial de movimientos). Los clientes ya cargados se omiten, así que no se duplican si lo subís dos veces.
+              También se puede subir directo el archivo que exporta QuickBooks (Ventas → Clientes → Exportar),
               sea CSV o Excel (.xls/.xlsx) — se lee tal cual, sin tener que convertir nada a mano.
               Se detecta solo y se mapea automáticamente (nombre, teléfono, email, dirección, saldo
               pendiente, e incluso el código de TaxiCaller si ya está cargado como parte del nombre).
@@ -245,7 +283,7 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
             <div className="px-4 py-3 border-b border-line text-sm">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span>
-                  {esQuickBooks ? 'Detectado como export de QuickBooks.' : 'Detectado como plantilla propia.'}{' '}
+                  {esContactos ? 'Detectado como Customer Contact List de QuickBooks.' : esQuickBooks ? 'Detectado como export de QuickBooks.' : 'Detectado como plantilla propia.'}{' '}
                   <b>{filas.length}</b> filas · <span className="text-success">{seleccionadas.length} seleccionadas para importar</span>
                   {conSaldo > 0 && crearApertura && <> · {conSaldo} con saldo inicial (se les crea una factura de apertura)</>}
                   <br />

@@ -16,6 +16,7 @@ export interface Cliente {
   telefonos: string; // uno o varios, ej. "4705959089 / 4482320660"
   direccion?: string; // ej. "233 Ardsley Place Apto 233, Norcross GA 30093"
   notas?: string;
+  nombreQb?: string; // nombre completo exacto en QuickBooks (clave para la migración)
   cuotaSemanal: number;
   fechaAlta: string; // ISO date
   estado: EstadoCliente;

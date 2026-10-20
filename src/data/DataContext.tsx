@@ -29,6 +29,31 @@ import { api, setToken, getToken, ApiError, descargarArchivo } from './apiClient
 // responde.
 // ─────────────────────────────────────────────────────────────────────
 
+export type TipoMovimientoQB = 'Invoice' | 'Payment' | 'Deposit' | 'Credit Memo' | 'Refund' | 'Expense' | 'Check';
+export interface MovimientoQB {
+  fecha: string; // ISO
+  tipo: TipoMovimientoQB;
+  num: string;
+  memo: string;
+  cuenta: string;
+  monto: number; // con el signo de QuickBooks
+}
+export interface BloqueHistorial {
+  nombreQb: string;
+  transacciones: MovimientoQB[];
+}
+export interface ResultadoLoteHistorial {
+  clientes: number;
+  facturas: number;
+  pagos: number;
+  notasCredito: number;
+  reembolsos: number;
+  excedentes: number;
+  yaImportados: string[];
+  sinCliente: string[];
+  omitidos: { sinMonto: number; raros: number; resumidos: number; depositos: number };
+}
+
 interface DataStore {
   cargando: boolean;
   errorConexion: string | null;
@@ -63,7 +88,7 @@ interface DataStore {
   agregarCliente: (input: Omit<Cliente, 'id'>) => Promise<Cliente>;
   importarClientesLote: (
     filas: (Omit<Cliente, 'id' | 'fechaAlta'> & { saldoInicial?: number })[]
-  ) => Promise<{ importados: number; conSaldoInicial: number }>;
+  ) => Promise<{ importados: number; conSaldoInicial: number; omitidos: number }>;
   actualizarCliente: (
     id: string,
     cambios: Partial<Omit<Cliente, 'id'>>
@@ -123,17 +148,8 @@ interface DataStore {
   aplicarPagoEmail: (id: string, clienteId: string, confirmarSinDinero?: boolean) => Promise<PagoEmail>;
   descartarPagoEmail: (id: string) => Promise<void>;
   estadoOutlookConfigurado: () => Promise<{ configurado: boolean }>;
-  importarHistorial: (bloques: {
-    codigo: string;
-    nombre: string;
-    transacciones: { fecha: string; tipo: 'Invoice' | 'Payment'; monto: number; cuenta: string }[];
-  }[]) => Promise<{
-    clientesConMovimientos: number;
-    facturasCreadas: number;
-    pagosCreados: number;
-    excedentesGenerados: number;
-    clientesSinMatch: string[];
-  }>;
+  importarHistorial: (bloques: BloqueHistorial[], opciones?: { desde?: string | null; refrescar?: boolean }) => Promise<ResultadoLoteHistorial>;
+  recargarMovimientos: () => Promise<void>;
   agregarItemCatalogoFee: (input: { codigo: string; etiqueta: string; monto: number }) => Promise<ItemCatalogoFee>;
   actualizarItemCatalogoFee: (id: string, cambios: Partial<{ codigo: string; etiqueta: string; monto: number }>) => Promise<void>;
   eliminarItemCatalogoFee: (id: string) => Promise<void>;
@@ -300,7 +316,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async function importarClientesLote(
       filas: (Omit<Cliente, 'id' | 'fechaAlta'> & { saldoInicial?: number })[]
     ) {
-      const resultado = await api.post<{ importados: number; conSaldoInicial: number }>('/clientes/importar-lote', {
+      const resultado = await api.post<{ importados: number; conSaldoInicial: number; omitidos: number }>('/clientes/importar-lote', {
         clientes: filas,
       });
       setClientes(await api.get<Cliente[]>('/clientes'));
@@ -530,19 +546,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setBillPagos([]);
     }
 
-    async function importarHistorial(
-      bloques: { codigo: string; nombre: string; transacciones: { fecha: string; tipo: 'Invoice' | 'Payment'; monto: number; cuenta: string }[] }[]
-    ) {
-      const resultado = await api.post<{
-        clientesConMovimientos: number;
-        facturasCreadas: number;
-        pagosCreados: number;
-        excedentesGenerados: number;
-        clientesSinMatch: string[];
-      }>('/facturas/importar-historial', { bloques });
+    async function recargarMovimientos() {
+      setClientes(await api.get<Cliente[]>('/clientes'));
       setFacturas(await api.get<Factura[]>('/facturas'));
       setPagos(await api.get<Pago[]>('/pagos'));
       setNotasCredito(await api.get<NotaCredito[]>('/notas-credito'));
+      setReembolsos(await api.get<Reembolso[]>('/reembolsos'));
+    }
+
+    async function importarHistorial(bloques: BloqueHistorial[], opciones: { desde?: string | null; refrescar?: boolean } = {}) {
+      const resultado = await api.post<ResultadoLoteHistorial>('/facturas/importar-historial', { bloques, desde: opciones.desde ?? null });
+      if (opciones.refrescar !== false) await recargarMovimientos();
       return resultado;
     }
 
@@ -637,6 +651,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       descartarPagoEmail,
       estadoOutlookConfigurado,
       importarHistorial,
+      recargarMovimientos,
       agregarItemCatalogoFee,
       actualizarItemCatalogoFee,
       eliminarItemCatalogoFee,

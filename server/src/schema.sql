@@ -333,6 +333,17 @@ ALTER TABLE bills ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
 -- Ajustes de contabilidad (JSON): fecha de corte, cuentas por método de pago, etc.
 ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS contab_config TEXT;
 
+-- ─── Migración desde QuickBooks ──────────────────────────────────────
+-- Nombre completo EXACTO del cliente en QuickBooks ("D0018 101001 Ninoska Chirinos"):
+-- es la única clave que no se repite (el código de unidad D0101 lo usaron varias personas).
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS nombre_qb TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_nombre_qb ON clientes(nombre_qb) WHERE nombre_qb IS NOT NULL;
+-- Para no importar dos veces el historial de un mismo cliente.
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS historial_importado BOOLEAN NOT NULL DEFAULT false;
+-- Número de documento de QuickBooks (no es único: QuickBooks repite números).
+ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_qb TEXT;
+ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS numero_qb TEXT;
+
 -- Seguridad en Supabase: sus tablas quedan expuestas por una API REST pública
 -- (con la clave "anon") salvo que tengan Row Level Security activado. El servidor
 -- se conecta como dueño de la base y no se ve afectado; con RLS activo y SIN

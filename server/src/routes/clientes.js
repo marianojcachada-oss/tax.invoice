@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { generarId, aCentavos, aDolares, registrarAuditoria } from '../utils.js';
+import { insertarFilas } from '../migracion/historialQB.js';
 
 export const clientesRouter = Router();
 
@@ -52,6 +53,7 @@ function serializar(row) {
     telefonos: row.telefonos ?? '',
     direccion: row.direccion ?? undefined,
     notas: row.notas ?? undefined,
+    nombreQb: row.nombre_qb ?? undefined,
     cuotaSemanal: aDolares(row.cuota_semanal),
     fechaAlta: row.fecha_alta,
     estado: row.estado,
@@ -77,43 +79,40 @@ clientesRouter.post('/importar-lote', async (req, res) => {
   const hoy = new Date().toISOString().slice(0, 10);
   let numeroFactura = (await db.prepare('SELECT MAX(numero) as n FROM facturas').get()).n ?? 40000;
   const semanaActual = (await db.prepare('SELECT MAX(semana) as s FROM facturas').get()).s ?? 1;
-  let importados = 0;
+
+  // Clientes de QuickBooks que ya existen (por nombre completo exacto) se omiten:
+  // así subir dos veces el mismo archivo no duplica nada.
+  const nombres = filas.map((f) => f.nombreQb).filter(Boolean);
+  const existentes = new Set(
+    nombres.length ? (await db.prepare('SELECT nombre_qb FROM clientes WHERE nombre_qb = ANY(?)').all(nombres)).map((r) => r.nombre_qb) : []
+  );
+  const vistos = new Set();
+  const nuevas = [];
+  let omitidos = 0;
+  for (const f of filas) {
+    if (f.nombreQb && (existentes.has(f.nombreQb) || vistos.has(f.nombreQb))) { omitidos += 1; continue; }
+    if (f.nombreQb) vistos.add(f.nombreQb);
+    nuevas.push(f);
+  }
+
   let conSaldoInicial = 0;
-
   await db.transaction(async (tx) => {
-    for (const f of filas) {
+    const clientes = [];
+    const aperturas = [];
+    for (const f of nuevas) {
       const clienteId = generarId('cli');
-      await tx
-        .prepare(
-          `INSERT INTO clientes (id, codigo, numero, nombre, email, licencia_info, telefonos, direccion, cuota_semanal, fecha_alta, estado)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
-          clienteId,
-          f.codigo,
-          f.numero || String(100000 + Math.floor(Math.random() * 900000)),
-          f.nombre,
-          f.email || null,
-          f.licenciaInfo || null,
-          f.telefonos || null,
-          f.direccion || null,
-          aCentavos(f.cuotaSemanal || 0),
-          hoy,
-          f.estado === 'inactivo' ? 'inactivo' : 'activo'
-        );
-      importados += 1;
-
+      clientes.push([
+        clienteId, f.codigo ?? '', f.numero || String(100000 + Math.floor(Math.random() * 900000)), f.nombre, f.email || null,
+        f.licenciaInfo || null, f.telefonos || null, f.direccion || null, f.notas || null, aCentavos(f.cuotaSemanal || 0), hoy,
+        f.estado === 'inactivo' ? 'inactivo' : 'activo', f.nombreQb || null,
+      ]);
       if (f.saldoInicial && f.saldoInicial > 0) {
-        numeroFactura += 1;
-        await tx
-          .prepare(
-            `INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, creado_por)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'pendiente', ?)`
-          )
-          .run(generarId('fac-migracion'), numeroFactura, clienteId, semanaActual, hoy, hoy, 'Saldo inicial (migración desde QuickBooks)', aCentavos(f.saldoInicial), req.usuario.nombre);
+        aperturas.push([generarId('fac-migracion'), ++numeroFactura, clienteId, semanaActual, hoy, hoy, 'Saldo inicial (migración desde QuickBooks)', aCentavos(f.saldoInicial), 0, 'pendiente', req.usuario.nombre]);
         conSaldoInicial += 1;
       }
     }
+    await insertarFilas(tx, 'clientes', ['id', 'codigo', 'numero', 'nombre', 'email', 'licencia_info', 'telefonos', 'direccion', 'notas', 'cuota_semanal', 'fecha_alta', 'estado', 'nombre_qb'], clientes);
+    await insertarFilas(tx, 'facturas', ['id', 'numero', 'cliente_id', 'semana', 'fecha', 'fecha_vencimiento', 'concepto', 'monto', 'monto_pagado', 'estado', 'creado_por'], aperturas);
   });
 
   await registrarAuditoria({
@@ -121,10 +120,10 @@ clientesRouter.post('/importar-lote', async (req, res) => {
     accion: 'Importó clientes en lote',
     entidad: 'Cliente',
     entidadId: 'importacion-masiva',
-    resumen: `Se importaron ${importados} clientes (${conSaldoInicial} con saldo inicial migrado como factura de apertura).`,
+    resumen: `Se importaron ${nuevas.length} clientes (${conSaldoInicial} con saldo inicial migrado como factura de apertura); ${omitidos} ya existían.`,
   });
 
-  res.json({ importados, conSaldoInicial });
+  res.json({ importados: nuevas.length, conSaldoInicial, omitidos });
 });
 
 clientesRouter.get('/:id', async (req, res) => {

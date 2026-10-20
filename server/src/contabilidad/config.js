@@ -6,8 +6,8 @@ import { PLAN_BASE } from './planBase.js';
 export const CONFIG_DEFECTO = {
   empresa: 'TAXI LASER LLC',
   corte: '2026-10-20', // fecha del Balance Sheet / P&L de QuickBooks cargados como saldos de arranque
-  zelle: '10200', // Bank of America 1611*  (pendiente de confirmar con el estudio: 1611 o 9859)
-  kotapay: '14510', // Undeposited Funds - Kotapay (pendiente: 14500 o 14510)
+  zelle: '10201', // Bank of America 9859*: en el historial de QuickBooks los pagos por Zelle de 2025-2026 entran ahí
+  kotapay: '14500', // Undeposited Funds: en el historial, los pagos con tarjeta/Kotapay entran ahí (14510 no tiene movimientos)
   efectivo: '10000', // Cash on Hand
   banco: '10200', // cuenta por defecto cuando un gasto/pago no indica de dónde salió
   ar: '11000',

@@ -232,27 +232,27 @@ test('importar-historial reconstruye pagos con FIFO, arrastrando saldo parcial e
   // Mismo patrón real encontrado en el archivo de QuickBooks: una semana
   // se paga de menos (quedó un resto de $13), y el pago de la semana
   // siguiente tiene que arrastrar ese resto antes de ir a la factura nueva.
+  await db.prepare("UPDATE clientes SET nombre_qb = 'D0001 1 Cliente Activo' WHERE id = 'cli-1'").run();
   const payload = {
     bloques: [
       {
-        codigo: 'D0001',
-        nombre: 'Cliente Activo',
+        nombreQb: 'D0001 1 Cliente Activo',
         transacciones: [
-          { fecha: '2026-09-08', tipo: 'Invoice', monto: 145, cuenta: '14500 Undeposited Funds' },
-          { fecha: '2026-09-08', tipo: 'Payment', monto: 145, cuenta: '14500 Undeposited Funds' },
-          { fecha: '2026-09-14', tipo: 'Invoice', monto: 145, cuenta: '14500 Undeposited Funds' },
-          { fecha: '2026-09-14', tipo: 'Payment', monto: 132, cuenta: '14500 Undeposited Funds' },
-          { fecha: '2026-09-21', tipo: 'Invoice', monto: 145, cuenta: '10201 Bank of America 9859*' },
-          { fecha: '2026-09-21', tipo: 'Payment', monto: 145, cuenta: '10201 Bank of America 9859*' },
+          { fecha: '2026-09-08', tipo: 'Invoice', monto: 145, num: '', memo: '', cuenta: '14500 Undeposited Funds' },
+          { fecha: '2026-09-08', tipo: 'Payment', monto: 145, num: '', memo: '', cuenta: '14500 Undeposited Funds' },
+          { fecha: '2026-09-14', tipo: 'Invoice', monto: 145, num: '', memo: '', cuenta: '14500 Undeposited Funds' },
+          { fecha: '2026-09-14', tipo: 'Payment', monto: 132, num: '', memo: '', cuenta: '14500 Undeposited Funds' },
+          { fecha: '2026-09-21', tipo: 'Invoice', monto: 145, num: '', memo: '', cuenta: '10201 Bank of America 9859*' },
+          { fecha: '2026-09-21', tipo: 'Payment', monto: 145, num: '', memo: '', cuenta: '10201 Bank of America 9859*' },
         ],
       },
     ],
   };
 
   const resultado = await fetch(`${baseUrl}/facturas/importar-historial`, { method: 'POST', headers, body: JSON.stringify(payload) }).then((r) => r.json());
-  assert.equal(resultado.facturasCreadas, 3);
-  assert.equal(resultado.pagosCreados, 3);
-  assert.equal(resultado.clientesSinMatch.length, 0);
+  assert.equal(resultado.facturas, 3);
+  assert.equal(resultado.pagos, 3);
+  assert.equal(resultado.sinCliente.length, 0);
 
   const facturas = await fetch(`${baseUrl}/facturas`, { headers })
     .then((r) => r.json())

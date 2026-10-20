@@ -145,8 +145,8 @@ test('la actividad nueva entra al libro: el balance sigue cuadrando, A/R = aging
   const aging = await arAgingSummary({ al: '2026-10-31' });
   const filaAR = bs.modelo.filas.find((f) => f.etiqueta === '11000 Accounts Receivable');
   assert.equal(filaAR.valores[0], aging.total);
-  // banco 1611: +60 - 25
-  const banco = (m) => m.filas.find((f) => f.etiqueta === '10200 Bank of America 1611*').valores[0];
+  // banco 9859 (Zelle): +60 - 25
+  const banco = (m) => m.filas.find((f) => f.etiqueta === '10201 Bank of America 9859*').valores[0];
   assert.equal(banco(bs.modelo) - banco(antes.modelo), 3500);
   const pl = await profitAndLoss({ desde: '2026-01-01', hasta: '2026-10-31' });
   assert.equal(pl.netIncome, 131369191 + 12000);

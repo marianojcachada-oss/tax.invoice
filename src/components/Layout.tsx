@@ -4,6 +4,7 @@ import { HelpCircle, Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch } from './GlobalSearch';
+import { AvisoSolicitud } from './AvisoSolicitud';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -27,6 +28,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="flex-1 min-w-0 bg-paper overflow-x-hidden">{children}</main>
+        <AvisoSolicitud />
       </div>
     </div>
   );

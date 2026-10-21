@@ -12,7 +12,7 @@ export function InvoiceModal({
   facturaId: string;
   onClose: () => void;
 }) {
-  const { facturas, getCliente, descargarFacturaPdf, enviarFacturaPorMail, editarFactura, usuarioActual } = useDataStore();
+  const { facturas, getCliente, descargarFacturaPdf, enviarFacturaPorMail, editarFactura, eliminarFactura, usuarioActual } = useDataStore();
   const [pagoAbierto, setPagoAbierto] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const [enviandoMail, setEnviandoMail] = useState(false);
@@ -50,6 +50,21 @@ export function InvoiceModal({
     if (!montoEdit || Number.isNaN(montoNumero) || montoNumero <= 0) return setErrorEdicion('El monto tiene que ser mayor a 0.');
     await editarFactura(facturaId, { concepto: conceptoEdit.trim(), monto: montoNumero, fechaVencimiento: vencimientoEdit });
     setEditando(false);
+  }
+
+  async function handleEliminar() {
+    if (!factura) return;
+    const aviso = esAdmin
+      ? `¿Eliminar la factura #${factura.numero}? Esta acción no se puede deshacer.`
+      : `Las facturas solo las borra el sector contable. ¿Querés pedir la eliminación de la factura #${factura.numero}?`;
+    if (!window.confirm(aviso)) return;
+    try {
+      await eliminarFactura(factura.id);
+      if (esAdmin) onClose();
+    } catch (e) {
+      setErrorEdicion(e instanceof Error ? e.message : 'No se pudo eliminar.');
+      setEditando(true);
+    }
   }
 
   async function handleDescargarPdf() {
@@ -134,11 +149,14 @@ export function InvoiceModal({
         {!editando && (
           <div className="px-4 py-2 border-t border-line no-print text-ink-faint text-[11px] flex items-center justify-between">
             <span>{factura.creadoPor ? `Creada por ${factura.creadoPor}` : ''}</span>
-            {esAdmin && (
+            <span className="flex items-center gap-3">
               <button className="text-accent hover:underline font-medium" onClick={handleAbrirEdicion}>
                 Editar factura
               </button>
-            )}
+              <button className="text-danger-dark hover:underline font-medium" onClick={handleEliminar}>
+                {esAdmin ? 'Eliminar' : 'Pedir eliminación'}
+              </button>
+            </span>
           </div>
         )}
 

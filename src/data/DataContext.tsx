@@ -18,7 +18,7 @@ import type {
   ItemCatalogoFee,
   PagoEmail,
 } from '../types';
-import { api, setToken, getToken, ApiError, descargarArchivo } from './apiClient';
+import { api, setToken, getToken, ApiError, descargarArchivo, esSolicitud } from './apiClient';
 
 // ─────────────────────────────────────────────────────────────────────
 // Esta capa habla con el backend real (ver carpeta server/). Ya NO guarda
@@ -95,6 +95,8 @@ interface DataStore {
   ) => Promise<{ codigo: string; etiqueta: string; monto: number; facturaId: string } | null>;
   agregarFactura: (input: { clienteId: string; concepto: string; monto: number; fechaVencimiento?: string; codigo?: string; beneficiarioId?: string }) => Promise<Factura>;
   editarFactura: (facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string }) => Promise<void>;
+  eliminarFactura: (facturaId: string) => Promise<void>;
+  recargarTodo: () => Promise<void>;
   generarFacturasSemanales: () => Promise<{ semana: number; generadas: number; salteadasInactivos: number; yaExistian: number; feesAplicados: number }>;
 
   registrarPago: (input: {
@@ -340,7 +342,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     async function editarFactura(facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string }) {
       const actualizada = await api.patch<Factura>(`/facturas/${facturaId}`, cambios);
+      if (esSolicitud(actualizada)) return; // quedó pendiente de aprobación
       setFacturas((prev) => prev.map((f) => (f.id === facturaId ? actualizada : f)));
+    }
+
+    async function eliminarFactura(facturaId: string) {
+      const r = await api.delete<unknown>(`/facturas/${facturaId}`);
+      if (esSolicitud(r)) return;
+      setFacturas((prev) => prev.filter((f) => f.id !== facturaId));
     }
 
     async function generarFacturasSemanales() {
@@ -361,6 +370,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     async function editarPago(pagoId: string, cambios: Parameters<DataStore['editarPago']>[1]) {
       const actualizado = await api.patch<Pago>(`/pagos/${pagoId}`, cambios);
+      if (esSolicitud(actualizado)) return;
       setPagos((prev) => prev.map((p) => (p.id === pagoId ? actualizado : p)));
       setFacturas(await api.get<Factura[]>('/facturas'));
       setNotasCredito(await api.get<NotaCredito[]>('/notas-credito'));
@@ -374,6 +384,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     async function editarNotaCredito(notaId: string, cambios: { motivo?: string; monto?: number }) {
       const actualizada = await api.patch<NotaCredito>(`/notas-credito/${notaId}`, cambios);
+      if (esSolicitud(actualizada)) return;
       setNotasCredito((prev) => prev.map((n) => (n.id === notaId ? actualizada : n)));
     }
 
@@ -617,6 +628,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       actualizarCliente,
       agregarFactura,
       editarFactura,
+      eliminarFactura,
+      recargarTodo: cargarTodo,
       generarFacturasSemanales,
       registrarPago,
       editarPago,

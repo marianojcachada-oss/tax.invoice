@@ -20,6 +20,8 @@ import { historialRouter } from './routes/historial.js';
 import { catalogoFeesRouter } from './routes/catalogoFees.js';
 import { pagosEmailRouter } from './routes/pagosEmail.js';
 import { contabilidadRouter } from './routes/contabilidad.js';
+import { solicitudesRouter } from './routes/solicitudes.js';
+import { soloLecturaParaOperador } from './permisos.js';
 import { requiereSesion } from './auth.js';
 
 export const app = express();
@@ -36,17 +38,17 @@ app.use(express.json({ limit: '5mb' })); // los documentos adjuntos viajan en ba
 app.use('/api/auth', authRouter);
 
 // Todo lo demás sí requiere sesión.
-app.use('/api/clientes', requiereSesion, clientesRouter);
+app.use('/api/clientes', requiereSesion, soloLecturaParaOperador((req) => /\/fees-pendientes/.test(req.path)), clientesRouter);
 app.use('/api/facturas', requiereSesion, facturasRouter);
 app.use('/api/pagos', requiereSesion, pagosRouter);
-app.use('/api/notas-credito', requiereSesion, notasCreditoRouter);
+app.use('/api/notas-credito', requiereSesion, soloLecturaParaOperador((req) => req.method === 'PATCH'), notasCreditoRouter);
 app.use('/api/auditoria', requiereSesion, auditoriaRouter);
 app.use('/api/configuracion', requiereSesion, configuracionRouter);
-app.use('/api/proveedores', requiereSesion, proveedoresRouter);
-app.use('/api/bills', requiereSesion, billsRouter);
-app.use('/api/cuentas', requiereSesion, cuentasRouter);
-app.use('/api/gastos', requiereSesion, gastosRouter);
-app.use('/api/reembolsos', requiereSesion, reembolsosRouter);
+app.use('/api/proveedores', requiereSesion, soloLecturaParaOperador(), proveedoresRouter);
+app.use('/api/bills', requiereSesion, soloLecturaParaOperador(), billsRouter);
+app.use('/api/cuentas', requiereSesion, soloLecturaParaOperador(), cuentasRouter);
+app.use('/api/gastos', requiereSesion, soloLecturaParaOperador(), gastosRouter);
+app.use('/api/reembolsos', requiereSesion, soloLecturaParaOperador(), reembolsosRouter);
 app.use('/api/documentos', requiereSesion, documentosRouter);
 app.use('/api/recordatorios', requiereSesion, recordatoriosRouter);
 app.use('/api/admin', requiereSesion, adminRouter);
@@ -55,6 +57,7 @@ app.use('/api/catalogo-fees', requiereSesion, catalogoFeesRouter);
 app.use('/api/pagos-email', requiereSesion, pagosEmailRouter);
 
 app.use('/api/contabilidad', requiereSesion, contabilidadRouter);
+app.use('/api/solicitudes', requiereSesion, solicitudesRouter);
 
 app.get('/api/salud', (req, res) => res.json({ ok: true, hora: new Date().toISOString() }));
 

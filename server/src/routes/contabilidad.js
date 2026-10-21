@@ -1,16 +1,18 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { requiereAdmin } from '../auth.js';
+import { requiereInformes } from '../permisos.js';
 import { generarId, aCentavos, aDolares, registrarAuditoria } from '../utils.js';
-import { asegurarPlan, guardarConfig, leerConfig } from '../contabilidad/config.js';
+import { asegurarPlan, guardarConfig, leerConfig, cuentaIngresoDeFee } from '../contabilidad/config.js';
 import { ErrorContable, saldoLibroAR } from '../contabilidad/libro.js';
-import { arAgingSummary, balanceSheet, profitAndLoss } from '../contabilidad/informes.js';
+import { apAgingSummary, arAgingSummary, balanceSheet, profitAndLoss, trialBalance } from '../contabilidad/informes.js';
 import { aCsv, aPdf, aXlsx, nombreArchivo, TIPOS_CONTENIDO } from '../contabilidad/exportar.js';
 import { cargarArranque } from '../contabilidad/importarQB.js';
 import { hoyAtlanta } from '../contabilidad/tipos.js';
 
 export const contabilidadRouter = Router();
-contabilidadRouter.use(requiereAdmin);
+// Supervisores pueden consultar los informes; todo lo que escribe es solo de administradores.
+contabilidadRouter.use((req, res, next) => (req.method === 'GET' ? requiereInformes(req, res, next) : requiereAdmin(req, res, next)));
 
 const esFecha = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 
@@ -31,6 +33,16 @@ const generadores = {
     const al = q.al ?? q.hasta ?? hoyAtlanta();
     if (!esFecha(al)) throw new ErrorContable('Fecha inválida.');
     return arAgingSummary({ al });
+  },
+  'ap-aging-summary': async (q) => {
+    const al = q.al ?? q.hasta ?? hoyAtlanta();
+    if (!esFecha(al)) throw new ErrorContable('Fecha inválida.');
+    return apAgingSummary({ al });
+  },
+  'trial-balance': async (q) => {
+    const al = q.al ?? q.hasta ?? hoyAtlanta();
+    if (!esFecha(al)) throw new ErrorContable('Fecha inválida.');
+    return trialBalance({ al });
   },
 };
 
@@ -126,7 +138,7 @@ contabilidadRouter.get('/mapeos', async (req, res) => {
   const fees = await db.prepare('SELECT id, codigo, etiqueta, cuenta_ingreso FROM catalogo_fees ORDER BY orden, codigo').all();
   const cuentas = await db.prepare('SELECT id, nombre, tipo, cuenta_contable FROM cuentas ORDER BY nombre').all();
   res.json({
-    fees: fees.map((f) => ({ id: f.id, codigo: f.codigo, etiqueta: f.etiqueta, cuentaIngreso: f.cuenta_ingreso ?? null })),
+    fees: fees.map((f) => ({ id: f.id, codigo: f.codigo, etiqueta: f.etiqueta, cuentaIngreso: f.cuenta_ingreso ?? null, cuentaPorDefecto: cuentaIngresoDeFee(f.codigo, null), esIngreso: f.codigo !== '1060DR' })),
     cuentas: cuentas.map((c) => ({ id: c.id, nombre: c.nombre, tipo: c.tipo, cuentaContable: c.cuenta_contable ?? null })),
   });
 });

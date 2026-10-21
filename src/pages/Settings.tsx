@@ -1,9 +1,9 @@
 import { ImportTransactionHistoryModal } from '../components/ImportTransactionHistoryModal';
-import { useState } from 'react';
-import { DollarSign, CalendarClock, CalendarDays, CreditCard, Building2, Mail, ArrowRightLeft, Bell, Phone, Users, DatabaseBackup, TriangleAlert, ListChecks, type LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { DollarSign, CalendarClock, CalendarDays, CreditCard, Building2, Mail, ArrowRightLeft, Bell, Phone, Users, DatabaseBackup, TriangleAlert, ListChecks, Lock, type LucideIcon } from 'lucide-react';
 import { useDataStore } from '../data/DataContext';
 import { api } from '../data/apiClient';
-import type { MetodoPago } from '../types';
+import { ROL_DESCRIPCION, ROL_ETIQUETA, type MetodoPago, type RolUsuario } from '../types';
 
 const DIAS: { valor: ConfigDia; etiqueta: string }[] = [
   { valor: 'lun', etiqueta: 'Lun' },
@@ -62,12 +62,29 @@ export function Settings() {
   const [probandoMail, setProbandoMail] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
-  const [nuevoRol, setNuevoRol] = useState<'admin' | 'operador'>('operador');
+  const [nuevoRol, setNuevoRol] = useState<RolUsuario>('operador');
   const [nuevoPin, setNuevoPin] = useState('');
   const [textoConfirmacion, setTextoConfirmacion] = useState('');
   const [borrando, setBorrando] = useState(false);
   const [errorBorrado, setErrorBorrado] = useState<string | null>(null);
   const [borradoOk, setBorradoOk] = useState(false);
+
+  const [cierre, setCierre] = useState<string>('');
+  const [cierreMsg, setCierreMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (usuarioActual?.rol !== 'admin') return;
+    api.get<{ cierreHasta: string | null }>('/solicitudes/cierre/actual').then((r) => setCierre(r.cierreHasta ?? '')).catch(() => {});
+  }, [usuarioActual?.rol]);
+
+  async function guardarCierre(valor: string) {
+    try {
+      const r = await api.put<{ cierreHasta: string | null }>('/solicitudes/cierre/actual', { cierreHasta: valor || null });
+      setCierre(r.cierreHasta ?? '');
+      setCierreMsg(r.cierreHasta ? `Período cerrado hasta el ${r.cierreHasta}.` : 'Sin cierre: todos los períodos están abiertos.');
+    } catch (e) {
+      setCierreMsg(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
+  }
 
   if (usuarioActual?.rol !== 'admin') {
     return (
@@ -150,7 +167,7 @@ export function Settings() {
         {[
           ['cuota', 'Cuota', DollarSign], ['emision', 'Emisión', CalendarClock], ['precios', 'Precios', CalendarDays], ['metodos', 'Métodos de pago', CreditCard],
           ['empresa', 'Empresa', Building2], ['mail', 'Mail', Mail], ['migracion', 'Migración', ArrowRightLeft], ['recordatorios', 'Recordatorios', Bell],
-          ['usuarios', 'Usuarios', Users], ['catalogo', 'Catálogo de fees', ListChecks], ['respaldo', 'Respaldo', DatabaseBackup],
+          ['usuarios', 'Usuarios', Users], ['cierre', 'Cierre contable', Lock], ['catalogo', 'Catálogo de fees', ListChecks], ['respaldo', 'Respaldo', DatabaseBackup],
         ].map(([id, nombre, Icono]) => {
           const I = Icono as LucideIcon;
           return (
@@ -435,22 +452,30 @@ export function Settings() {
       <div className="panel p-5">
         <div className="mb-2"><Cab icono={Users} id="usuarios">Usuarios</Cab></div>
         <div className="text-ink-faint text-[11px] mb-3">
-          Quién puede entrar a la app y qué puede hacer. Los operadores no ven
-          Configuración ni Auditoría, y no pueden borrar cuentas/proveedores
-          ni corregir un pago ya registrado.
+          Quién puede entrar a la app y qué puede hacer.
+          <ul className="mt-1.5 list-disc pl-4">
+            {(['admin', 'supervisor', 'operador'] as RolUsuario[]).map((r) => (
+              <li key={r}><b>{ROL_ETIQUETA[r]}:</b> {ROL_DESCRIPCION[r]}</li>
+            ))}
+          </ul>
         </div>
         <div className="border border-line rounded-[6px] divide-y divide-line-soft mb-4">
           {usuarios.map((u) => (
             <div key={u.id} className="flex items-center justify-between px-3.5 py-2.5 text-[13px]">
               <div>
                 <span className="font-medium">{u.nombre}</span>{' '}
-                <span className="chip capitalize ml-1">{u.rol}</span>
+                <span className="chip ml-1">{ROL_ETIQUETA[u.rol]}</span>
                 {!u.activo && <span className="chip ml-1">Inactivo</span>}
               </div>
               <div className="flex items-center gap-3">
-                <button className="text-[12px] font-medium text-accent hover:underline" onClick={() => actualizarUsuario(u.id, { rol: u.rol === 'admin' ? 'operador' : 'admin' })}>
-                  Hacer {u.rol === 'admin' ? 'operador' : 'admin'}
-                </button>
+                <select
+                  aria-label={`Rol de ${u.nombre}`}
+                  value={u.rol}
+                  onChange={(e) => actualizarUsuario(u.id, { rol: e.target.value as RolUsuario })}
+                  className="border border-line rounded-[5px] bg-surface px-2 py-1 text-[12px]"
+                >
+                  {(['operador', 'supervisor', 'admin'] as RolUsuario[]).map((r) => <option key={r} value={r}>{ROL_ETIQUETA[r]}</option>)}
+                </select>
                 <button className="text-[12px] hover:underline text-ink-soft" onClick={() => actualizarUsuario(u.id, { activo: !u.activo })}>
                   {u.activo ? 'Desactivar' : 'Reactivar'}
                 </button>
@@ -466,8 +491,8 @@ export function Settings() {
           <div>
             <div className={fieldLabelCls}>Rol</div>
             <div className="flex gap-1.5">
-              {(['operador', 'admin'] as const).map((r) => (
-                <button key={r} onClick={() => setNuevoRol(r)} aria-pressed={nuevoRol === r} className={nuevoRol === r ? 'chip-accent capitalize' : 'chip capitalize'}>{r}</button>
+              {(['operador', 'supervisor', 'admin'] as const).map((r) => (
+                <button key={r} onClick={() => setNuevoRol(r)} aria-pressed={nuevoRol === r} className={nuevoRol === r ? 'chip-accent' : 'chip'}>{ROL_ETIQUETA[r]}</button>
               ))}
             </div>
           </div>
@@ -484,6 +509,21 @@ export function Settings() {
             Agregar
           </button>
         </div>
+      </div>
+
+      <div className="panel p-5">
+        <div className="mb-2"><Cab icono={Lock} id="cierre">Cierre contable</Cab></div>
+        <div className="text-ink-faint text-[11px] mb-3">
+          Las facturas, pagos y notas con fecha hasta el día elegido quedan bloqueadas: nadie las modifica directo
+          (ni siquiera un administrador). Los demás usuarios pueden pedir el cambio y un administrador lo autoriza
+          en Solicitudes. Para tocar un período cerrado sin solicitud, reabrilo acá.
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          <input type="date" value={cierre} onChange={(e) => setCierre(e.target.value)} className={inputCls} style={{ maxWidth: 190 }} />
+          <button className="btn-accent" onClick={() => guardarCierre(cierre)} disabled={!cierre}>Cerrar hasta esta fecha</button>
+          <button className="btn-outline" onClick={() => guardarCierre('')}>Reabrir todo</button>
+        </div>
+        {cierreMsg && <div className="text-sm text-ink-soft mt-2">{cierreMsg}</div>}
       </div>
 
       <div className="panel p-5">

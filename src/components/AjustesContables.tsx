@@ -10,7 +10,7 @@ interface Config {
   saldosCargados: number;
 }
 interface Mapeos {
-  fees: { id: string; codigo: string; etiqueta: string; cuentaIngreso: string | null }[];
+  fees: { id: string; codigo: string; etiqueta: string; cuentaIngreso: string | null; cuentaPorDefecto?: string; esIngreso?: boolean }[];
   cuentas: { id: string; nombre: string; tipo: string; cuentaContable: string | null }[];
 }
 interface Asiento { id: string; fecha: string; descripcion: string; lineas: { cuenta: string; debe: number; haber: number }[] }
@@ -190,7 +190,13 @@ export function AjustesContables({ onCambio }: { onCambio: () => void }) {
                 {mapeos.fees.map((f) => (
                   <div key={f.id} className="flex flex-wrap items-center gap-2">
                     <span className="w-52 truncate" title={f.etiqueta}>{f.codigo} · {f.etiqueta}</span>
-                    <SelectCuenta plan={plan} tipos={['Income', 'Other Income']} etiqueta={`Ingreso de ${f.codigo}`} valor={f.cuentaIngreso} vacio="(la de por defecto)" onChange={(v) => guardarMapeo({ fees: [{ id: f.id, cuentaIngreso: v }] })} />
+                    {f.esIngreso === false ? (
+                      <span className="text-ink-soft text-[12px]">No es ingreso: lo cobrado baja el A/R (recupera un ingreso ya registrado)</span>
+                    ) : (
+                      <SelectCuenta plan={plan} tipos={['Income', 'Other Income']} etiqueta={`Ingreso de ${f.codigo}`} valor={f.cuentaIngreso}
+                        vacio={`(por defecto: ${f.cuentaPorDefecto ? `${f.cuentaPorDefecto} ${plan.find((c) => c.numero === f.cuentaPorDefecto)?.nombre ?? ''}` : 'la general'})`}
+                        onChange={(v) => guardarMapeo({ fees: [{ id: f.id, cuentaIngreso: v }] })} />
+                    )}
                   </div>
                 ))}
               </div>
@@ -215,6 +221,29 @@ export function AjustesContables({ onCambio }: { onCambio: () => void }) {
       <details className={caja}>
         <summary className={resumen}>3 · Asientos manuales (nómina, depreciación, retiros…)</summary>
         <div className="px-4 pb-4 text-[13px] flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
+            <span>El estudio carga nómina, depreciación e impuesto en un solo asiento por mes:</span>
+            <button
+              className="chip hover:border-accent"
+              onClick={() =>
+                setNuevo({
+                  ...nuevo,
+                  descripcion: 'Nómina, depreciación e impuesto del mes',
+                  lineas: [
+                    { cuenta: '60100', debe: '', haber: '' }, // Wages & Salaries
+                    { cuenta: '60300', debe: '', haber: '' }, // Payroll Expenses
+                    { cuenta: '81100', debe: '', haber: '' }, // Depreciation Expense
+                    { cuenta: '67550', debe: '', haber: '' }, // State Income Tax Expense
+                    { cuenta: '24000', debe: '', haber: '' }, // Payroll Liabilities
+                    { cuenta: '16000', debe: '', haber: '' }, // Accumulated Depreciation
+                    { cuenta: '24500', debe: '', haber: '' }, // State Income Tax Payable
+                  ],
+                })
+              }
+            >
+              Usar plantilla mensual
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             <input type="date" aria-label="Fecha del asiento" value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} className="h-8 px-2 border border-line rounded-[5px] bg-surface" />
             <input aria-label="Descripción del asiento" placeholder="Descripción" value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} className="h-8 px-2 border border-line rounded-[5px] bg-surface flex-1 min-w-[200px]" />

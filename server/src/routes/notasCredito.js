@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { generarId, aCentavos, aDolares, registrarAuditoria } from '../utils.js';
 import { alQuedarPagas } from '../postPago.js';
-import { requiereAdmin } from '../auth.js';
+import { ErrorHttp, ejecutarOSolicitar, registrarEjecutor, responderError } from '../permisos.js';
 
 export const notasCreditoRouter = Router();
 
@@ -86,36 +86,53 @@ notasCreditoRouter.post('/', async (req, res) => {
   res.status(201).json(await serializar(creada));
 });
 
-notasCreditoRouter.patch('/:id', requiereAdmin, async (req, res) => {
-  const actual = await db.prepare('SELECT * FROM notas_credito WHERE id = ?').get(req.params.id);
-  if (!actual) return res.status(404).json({ error: 'Nota de crédito no encontrada.' });
-
-  const b = req.body;
+export async function editarNotaCore(id, b, autor) {
+  const actual = await db.prepare('SELECT * FROM notas_credito WHERE id = ?').get(id);
+  if (!actual) throw new ErrorHttp(404, 'Nota de crédito no encontrada.');
   const nuevoMonto = b.monto !== undefined ? aCentavos(b.monto) : actual.monto;
   if (nuevoMonto < actual.monto_aplicado) {
-    return res.status(400).json({ error: `No se puede bajar el monto por debajo de lo que ya se aplicó ($${aDolares(actual.monto_aplicado)}).` });
+    throw new ErrorHttp(400, `No se puede bajar el monto por debajo de lo que ya se aplicó ($${aDolares(actual.monto_aplicado)}).`);
   }
-
-  const cambios = [];
-  if (b.motivo !== undefined && b.motivo !== actual.motivo) cambios.push({ campo: 'Motivo', anterior: actual.motivo, nuevo: b.motivo });
-  if (nuevoMonto !== actual.monto) cambios.push({ campo: 'Monto', anterior: String(aDolares(actual.monto)), nuevo: String(b.monto) });
-
+  const cambios = cambiosDeNota(actual, b);
   await db
     .prepare('UPDATE notas_credito SET motivo = ?, monto = ?, aplicada = ? WHERE id = ?')
-    .run(b.motivo ?? actual.motivo, nuevoMonto, nuevoMonto <= actual.monto_aplicado, req.params.id);
-
+    .run(b.motivo ?? actual.motivo, nuevoMonto, nuevoMonto <= actual.monto_aplicado, id);
   if (cambios.length > 0) {
-    await registrarAuditoria({
-      usuario: req.usuario.nombre,
-      accion: 'Editó nota de crédito',
-      entidad: 'NotaCredito',
-      entidadId: req.params.id,
-      resumen: `Se corrigió la nota #${actual.numero}`,
-      cambios,
-    });
+    await registrarAuditoria({ usuario: autor, accion: 'Editó nota de crédito', entidad: 'NotaCredito', entidadId: id, resumen: `Se corrigió la nota #${actual.numero}`, cambios });
   }
-  const actualizada = await db.prepare('SELECT * FROM notas_credito WHERE id = ?').get(req.params.id);
-  res.json(await serializar(actualizada));
+  return await serializar(await db.prepare('SELECT * FROM notas_credito WHERE id = ?').get(id));
+}
+
+function cambiosDeNota(actual, b) {
+  const cambios = [];
+  if (b.motivo !== undefined && b.motivo !== actual.motivo) cambios.push({ campo: 'Motivo', anterior: actual.motivo, nuevo: b.motivo });
+  if (b.monto !== undefined && aCentavos(b.monto) !== actual.monto) cambios.push({ campo: 'Monto', anterior: String(aDolares(actual.monto)), nuevo: String(b.monto) });
+  return cambios;
+}
+
+registrarEjecutor('editar_nota_credito', (p, { autor }) => editarNotaCore(p.id, p.cambios, autor));
+
+notasCreditoRouter.patch('/:id', async (req, res, next) => {
+  try {
+    const actual = await db.prepare('SELECT * FROM notas_credito WHERE id = ?').get(req.params.id);
+    if (!actual) throw new ErrorHttp(404, 'Nota de crédito no encontrada.');
+    const b = req.body ?? {};
+    const detalle = cambiosDeNota(actual, b);
+    if (detalle.length === 0) return res.json(await serializar(actual));
+    await ejecutarOSolicitar(req, res, {
+      tipo: 'editar_nota_credito',
+      entidad: 'NotaCredito',
+      entidadId: actual.id,
+      fecha: actual.fecha,
+      resumen: `Corregir la nota de crédito #${actual.numero}`,
+      detalle,
+      payload: { id: actual.id, cambios: b },
+      permitido: req.usuario.rol !== 'operador',
+      aplicar: () => editarNotaCore(actual.id, b, req.usuario.nombre),
+    });
+  } catch (e) {
+    responderError(res, e, next);
+  }
 });
 
 notasCreditoRouter.post('/:id/aplicar', async (req, res) => {

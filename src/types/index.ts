@@ -265,7 +265,31 @@ export interface DocumentoCliente {
 // (2) evitar errores por descuido (que un operador borre una cuenta sin
 // querer). El día que haya backend, esto se reemplaza por autenticación de
 // verdad del lado del servidor.
-export type RolUsuario = 'admin' | 'operador';
+export type RolUsuario = 'admin' | 'supervisor' | 'operador';
+
+export const ROL_ETIQUETA: Record<RolUsuario, string> = { admin: 'Administrador', supervisor: 'Supervisor', operador: 'Operador' };
+export const ROL_DESCRIPCION: Record<RolUsuario, string> = {
+  admin: 'Control total. Aprueba solicitudes y cierra períodos.',
+  supervisor: 'Ve todo, incluidos los informes. No borra facturas.',
+  operador: 'Crea facturas, recibe pagos y ve clientes. Los cambios sensibles pasan por autorización.',
+};
+
+export interface SolicitudCambio {
+  id: string;
+  tipo: string;
+  entidad: string;
+  entidadId: string;
+  resumen: string;
+  detalle: { campo: string; anterior: string; nuevo: string }[];
+  motivo?: string;
+  solicitanteId: string;
+  solicitante: string;
+  creada: string;
+  estado: 'pendiente' | 'aprobada' | 'rechazada' | 'fallida';
+  resueltaPor?: string;
+  resuelta?: string;
+  nota?: string;
+}
 
 export interface Usuario {
   id: string;

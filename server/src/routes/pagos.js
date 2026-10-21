@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { alQuedarPagas } from '../postPago.js';
 import { generarId, aCentavos, aDolares, registrarAuditoria } from '../utils.js';
+import { ErrorHttp, ejecutarOSolicitar, registrarEjecutor, responderError } from '../permisos.js';
 
 export const pagosRouter = Router();
 
@@ -115,12 +116,11 @@ pagosRouter.post('/', async (req, res) => {
   res.status(201).json(await serializarPago(creado));
 });
 
-pagosRouter.patch('/:id', async (req, res) => {
-  const pagoActual = await db.prepare('SELECT * FROM pagos WHERE id = ?').get(req.params.id);
-  if (!pagoActual) return res.status(404).json({ error: 'Pago no encontrado.' });
+export async function editarPagoCore(id, b, autor) {
+  const pagoActual = await db.prepare('SELECT * FROM pagos WHERE id = ?').get(id);
+  if (!pagoActual) throw new ErrorHttp(404, 'Pago no encontrado.');
 
-  const b = req.body;
-  const aplicacionesViejas = await db.prepare('SELECT factura_id, monto FROM pago_aplicaciones WHERE pago_id = ?').all(req.params.id);
+  const aplicacionesViejas = await db.prepare('SELECT factura_id, monto FROM pago_aplicaciones WHERE pago_id = ?').all(id);
 
   await db.transaction(async (tx) => {
     if (Array.isArray(b.aplicaciones)) {
@@ -128,11 +128,11 @@ pagosRouter.patch('/:id', async (req, res) => {
       for (const a of aplicacionesViejas) {
         await tx.prepare('UPDATE facturas SET monto_pagado = monto_pagado - ? WHERE id = ?').run(a.monto, a.factura_id);
       }
-      await tx.prepare('DELETE FROM pago_aplicaciones WHERE pago_id = ?').run(req.params.id);
+      await tx.prepare('DELETE FROM pago_aplicaciones WHERE pago_id = ?').run(id);
 
       // Aplicar lo nuevo
       for (const a of b.aplicaciones) {
-        await tx.prepare('INSERT INTO pago_aplicaciones (pago_id, factura_id, monto) VALUES (?, ?, ?)').run(req.params.id, a.facturaId, aCentavos(a.monto));
+        await tx.prepare('INSERT INTO pago_aplicaciones (pago_id, factura_id, monto) VALUES (?, ?, ?)').run(id, a.facturaId, aCentavos(a.monto));
         await tx.prepare('UPDATE facturas SET monto_pagado = monto_pagado + ? WHERE id = ?').run(aCentavos(a.monto), a.facturaId);
       }
 
@@ -141,25 +141,57 @@ pagosRouter.patch('/:id', async (req, res) => {
       for (const facturaId of idsTocados) await recalcularEstadoFactura(tx, facturaId);
 
       const nuevoMonto = Math.round(b.aplicaciones.reduce((acc, a) => acc + a.monto, 0) * 100) / 100;
-      await tx.prepare('UPDATE pagos SET monto = ? WHERE id = ?').run(aCentavos(nuevoMonto), req.params.id);
+      await tx.prepare('UPDATE pagos SET monto = ? WHERE id = ?').run(aCentavos(nuevoMonto), id);
     }
 
     await tx.prepare('UPDATE pagos SET metodo = ?, referencia = ?, cuenta_id = ?, editado = true WHERE id = ?').run(
       b.metodo ?? pagoActual.metodo,
       b.referencia !== undefined ? b.referencia : pagoActual.referencia,
       b.cuentaId !== undefined ? b.cuentaId : pagoActual.cuenta_id,
-      req.params.id
+      id
     );
   });
 
   await registrarAuditoria({
-    usuario: req.usuario.nombre,
+    usuario: autor,
     accion: 'Editó pago',
     entidad: 'Pago',
-    entidadId: req.params.id,
+    entidadId: id,
     resumen: `Se corrigió el pago #${pagoActual.numero}`,
   });
 
-  const actualizado = await db.prepare('SELECT * FROM pagos WHERE id = ?').get(req.params.id);
-  res.json(await serializarPago(actualizado));
+  const actualizado = await db.prepare('SELECT * FROM pagos WHERE id = ?').get(id);
+  return await serializarPago(actualizado);
+}
+
+registrarEjecutor('editar_pago', (p, { autor }) => editarPagoCore(p.id, p.cambios, autor));
+
+pagosRouter.patch('/:id', async (req, res, next) => {
+  try {
+    const actual = await db.prepare('SELECT * FROM pagos WHERE id = ?').get(req.params.id);
+    if (!actual) throw new ErrorHttp(404, 'Pago no encontrado.');
+    const b = req.body ?? {};
+    const detalle = [];
+    if (b.metodo !== undefined && b.metodo !== actual.metodo) detalle.push({ campo: 'Método', anterior: actual.metodo, nuevo: b.metodo });
+    if (b.referencia !== undefined && (b.referencia || '') !== (actual.referencia || '')) detalle.push({ campo: 'Referencia', anterior: actual.referencia || '—', nuevo: b.referencia || '—' });
+    if (b.cuentaId !== undefined && (b.cuentaId || null) !== (actual.cuenta_id || null)) detalle.push({ campo: 'Cuenta', anterior: actual.cuenta_id || '—', nuevo: b.cuentaId || '—' });
+    if (Array.isArray(b.aplicaciones)) {
+      const nuevo = Math.round(b.aplicaciones.reduce((acc, x) => acc + x.monto, 0) * 100) / 100;
+      detalle.push({ campo: 'Aplicaciones', anterior: `$${aDolares(actual.monto)}`, nuevo: `${b.aplicaciones.length} factura(s) · $${nuevo}` });
+    }
+    const cli = await db.prepare('SELECT nombre FROM clientes WHERE id = ?').get(actual.cliente_id);
+    await ejecutarOSolicitar(req, res, {
+      tipo: 'editar_pago',
+      entidad: 'Pago',
+      entidadId: actual.id,
+      fecha: actual.fecha,
+      resumen: `Corregir el pago #${actual.numero} de ${cli?.nombre ?? ''}`.trim(),
+      detalle,
+      payload: { id: actual.id, cambios: b },
+      permitido: req.usuario.rol !== 'operador',
+      aplicar: () => editarPagoCore(actual.id, b, req.usuario.nombre),
+    });
+  } catch (e) {
+    responderError(res, e, next);
+  }
 });

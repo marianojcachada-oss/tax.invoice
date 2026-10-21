@@ -15,6 +15,7 @@ import { Audit } from './pages/Audit';
 import { Settings } from './pages/Settings';
 import { Informes } from './pages/Informes';
 import { Help } from './pages/Help';
+import { Solicitudes } from './pages/Solicitudes';
 
 export default function App() {
   return (
@@ -57,6 +58,8 @@ function AuthGate() {
     return <LoginScreen />;
   }
 
+  const veInformes = usuarioActual.rol === 'admin' || usuarioActual.rol === 'supervisor';
+
   return (
     <BrowserRouter>
       <Layout>
@@ -71,10 +74,11 @@ function AuthGate() {
           <Route path="/proveedores" element={<Vendors />} />
           <Route path="/cuentas" element={<Accounts />} />
           <Route path="/gastos" element={<Expenses />} />
-          <Route path="/reportes" element={<Reports />} />
+          <Route path="/reportes" element={veInformes ? <Reports /> : <Dashboard />} />
           <Route path="/auditoria" element={<Audit />} />
           <Route path="/configuracion" element={<Settings />} />
-          <Route path="/informes" element={<Informes />} />
+          <Route path="/informes" element={veInformes ? <Informes /> : <Dashboard />} />
+          <Route path="/solicitudes" element={<Solicitudes />} />
           <Route path="/ayuda" element={<Help />} />
         </Routes>
       </Layout>

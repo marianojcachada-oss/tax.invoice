@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { saldosBalance, saldosResultados } from './libro.js';
 import { leerConfig } from './config.js';
-import { esResultados, hoyAtlanta, sumarDias } from './tipos.js';
+import { aDebeHaber, esResultados, hoyAtlanta, sumarDias } from './tipos.js';
 
 // ─── Fechas con el formato de QuickBooks ────────────────────────────
 const MESES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -230,8 +230,14 @@ export async function arAgingSummary({ al, conn = db }) {
     tocar(n.cliente_id)[casillero(diasEntre(String(n.fecha).slice(0, 10), al))] -= libre;
   }
 
-  const lineas = [...porCliente.entries()]
-    .map(([id, v]) => ({ etiqueta: nombre.get(id) ?? id, v }))
+  return armarAging({ cfg, titulo: 'A/R Aging Summary Report', al, porEntidad: porCliente, etiquetas: nombre, pasado,
+    aviso: 'Para fechas pasadas los saldos se reconstruyen con la fecha de cada pago; los créditos se consideran aplicados.' });
+}
+
+/** Arma el informe de antigüedad (A/R o A/P) a partir de { id -> [5 casilleros] }. */
+function armarAging({ cfg, titulo, al, porEntidad, etiquetas, pasado, aviso }) {
+  const lineas = [...porEntidad.entries()]
+    .map(([id, v]) => ({ etiqueta: etiquetas.get(id) ?? id, v }))
     .filter((x) => x.v.some((n) => n !== 0))
     .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'en', { sensitivity: 'base' }));
 
@@ -255,13 +261,77 @@ export async function arAgingSummary({ al, conn = db }) {
     total: true,
     valores: tot,
     formulas: [0, 1, 2, 3, 4].map(() => ({ filas: idx.map((fila) => ({ fila, signo: 1 })) })).concat([{ columnas: [0, 1, 2, 3, 4] }]),
-    moneda: [true, false, false, false, false, true], // el sistema anterior pone "$" solo en CURRENT y Total
+    moneda: [true, false, false, false, false, true], // solo se pone "$" en CURRENT y Total
   });
 
   return {
-    modelo: { ...marco(cfg, 'A/R Aging Summary Report', `As of ${corto(al)}`, COLUMNAS_AGING, b.filas, ` ${selloDeTiempo()}`) },
-    avisos: pasado ? ['Para fechas pasadas los saldos se reconstruyen con la fecha de cada pago; los créditos se consideran aplicados.'] : [],
+    modelo: { ...marco(cfg, titulo, `As of ${corto(al)}`, COLUMNAS_AGING, b.filas, ` ${selloDeTiempo()}`) },
+    avisos: pasado && aviso ? [aviso] : [],
     total: tot[5],
+  };
+}
+
+// ─── A/P Aging Summary ───────────────────────────────────────────────
+/** Lo que se les debe a los proveedores, por antigüedad (bills cargadas en la app). */
+export async function apAgingSummary({ al, conn = db }) {
+  const cfg = await leerConfig(conn);
+  const pasado = al < hoyAtlanta();
+  const bills = await conn
+    .prepare(
+      `WITH pa AS (
+         SELECT a.bill_id,
+                SUM(a.monto)::bigint AS total,
+                SUM(CASE WHEN substr(p.fecha,1,10) <= ? THEN a.monto ELSE 0 END)::bigint AS hasta
+           FROM bill_pago_aplicaciones a JOIN bill_pagos p ON p.id = a.bill_pago_id
+          GROUP BY a.bill_id
+       )
+       SELECT b.proveedor_id, b.fecha_vencimiento, b.monto, b.monto_pagado,
+              COALESCE(pa.hasta, 0) AS pagado_hasta, COALESCE(pa.total, 0) AS pagado_por_pagos
+         FROM bills b LEFT JOIN pa ON pa.bill_id = b.id
+        WHERE substr(b.fecha,1,10) <= ?`
+    )
+    .all(al, al);
+  const proveedores = await conn.prepare('SELECT id, nombre FROM proveedores').all();
+  const nombre = new Map(proveedores.map((p) => [p.id, p.nombre]));
+  const porProveedor = new Map();
+  for (const x of bills) {
+    const creditos = Math.max(0, Number(x.monto_pagado) - Number(x.pagado_por_pagos));
+    const pagado = pasado ? Number(x.pagado_hasta) + creditos : Number(x.monto_pagado);
+    const saldo = x.monto - pagado;
+    if (saldo === 0) continue;
+    if (!porProveedor.has(x.proveedor_id)) porProveedor.set(x.proveedor_id, Array(5).fill(0));
+    porProveedor.get(x.proveedor_id)[casillero(diasEntre(String(x.fecha_vencimiento).slice(0, 10), al))] += saldo;
+  }
+  const r = armarAging({ cfg, titulo: 'A/P Aging Summary', al, porEntidad: porProveedor, etiquetas: nombre, pasado, aviso: 'Para fechas pasadas los saldos se reconstruyen con la fecha de cada pago.' });
+  r.avisos.push('Incluye solo las bills cargadas en la app; las deudas anteriores al corte contable están en los saldos de arranque (cuenta de A/P).');
+  return r;
+}
+
+// ─── Trial Balance ───────────────────────────────────────────────────
+/** Saldo deudor/acreedor de cada cuenta a una fecha (resultados del año en curso + balance). */
+export async function trialBalance({ al, conn = db }) {
+  const bal = await saldosBalance(al, conn);
+  const res = await saldosResultados(`${al.slice(0, 4)}-01-01`, al, conn);
+  const { plan, cfg } = bal;
+  const b = new Constructor(2);
+  const idx = [];
+  const todas = new Map([...bal.saldos, ...res.saldos]);
+  let sinSaldo = 0;
+  for (const c of plan.filter((x) => x.activa !== false).sort((x, y) => Number(x.numero) - Number(y.numero))) {
+    const v = todas.get(c.numero) ?? 0;
+    if (v === 0) { sinSaldo += 1; continue; }
+    const { debe, haber } = aDebeHaber(c.tipo, v);
+    idx.push(b.push({ etiqueta: `${c.numero} ${c.nombre}`, valores: [debe || null, haber || null], moneda: [true, true] }));
+  }
+  const tot = [0, 1].map((col) => idx.reduce((a, i) => a + b.valor(i, col), 0));
+  b.push({ etiqueta: 'TOTAL', negrita: true, total: true, valores: tot, formulas: [0, 1].map(() => ({ filas: idx.map((fila) => ({ fila, signo: 1 })) })), moneda: [true, true] });
+  return {
+    modelo: marco(cfg, 'Trial Balance', `As of ${corto(al)}`, ['Debit', 'Credit'], b.filas, `Accrual Basis ${selloDeTiempo()}`),
+    avisos: [...new Set([...bal.avisos, ...res.avisos])],
+    cuadra: tot[0] === tot[1],
+    totalDebito: tot[0],
+    totalCredito: tot[1],
+    sinSaldo,
   };
 }
 

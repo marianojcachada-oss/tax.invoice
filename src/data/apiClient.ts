@@ -39,8 +39,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(cuerpo.error || `Error ${res.status}`, res.status);
   }
   if (res.status === 204) return null as T;
-  return res.json();
+  const cuerpo = await res.json();
+  // 202 = el cambio quedó como solicitud para el sector contable (no se aplicó todavía).
+  if (res.status === 202 && cuerpo && cuerpo.solicitud) {
+    window.dispatchEvent(new CustomEvent('tax:solicitud', { detail: { mensaje: cuerpo.mensaje as string } }));
+  }
+  return cuerpo as T;
 }
+
+/** ¿La respuesta es una solicitud pendiente en vez del dato actualizado? */
+export const esSolicitud = (x: unknown): boolean => !!x && typeof x === 'object' && 'solicitud' in (x as object);
 
 export const api = {
   get: <T,>(path: string) => request<T>(path),

@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { leerConfig, asegurarPlan } from './config.js';
+import { leerConfig, asegurarPlan, cuentaIngresoDeFee } from './config.js';
 import { natural, esResultados, sumarDias } from './tipos.js';
 
 export class ErrorContable extends Error {
@@ -46,15 +46,17 @@ export async function movimientosApp(desde, hasta, cfg, conn = db) {
 
   const ctas = new Map((await conn.prepare('SELECT id, cuenta_contable FROM cuentas').all()).map((c) => [c.id, c.cuenta_contable]));
 
-  // Facturas: A/R contra el ingreso que corresponde al código de fee.
+  // Facturas: A/R contra el ingreso que corresponde al código de fee. La deuda recuperada (1060DR) NO es ingreso:
+  // es cobrar algo que ya estaba registrado, así que ni la factura ni el saldo a favor que genera pasan por el libro;
+  // el pago de esa factura simplemente baja el A/R.
   const facturas = await conn
     .prepare(
       `SELECT f.fecha, f.monto, f.codigo,
               (SELECT cf.cuenta_ingreso FROM catalogo_fees cf WHERE cf.codigo = f.codigo AND cf.cuenta_ingreso IS NOT NULL LIMIT 1) AS cuenta_ingreso
-       FROM facturas f WHERE f.estado <> 'anulada' AND substr(f.fecha, 1, 10) BETWEEN ? AND ?`
+       FROM facturas f WHERE f.estado <> 'anulada' AND f.codigo IS DISTINCT FROM '1060DR' AND substr(f.fecha, 1, 10) BETWEEN ? AND ?`
     )
     .all(desde, hasta);
-  for (const f of facturas) par(f.fecha, cfg.ar, f.cuenta_ingreso || cfg.ingresoDefault, f.monto, 'factura');
+  for (const f of facturas) par(f.fecha, cfg.ar, cuentaIngresoDeFee(f.codigo, f.cuenta_ingreso, cfg), f.monto, 'factura');
 
   // Pagos recibidos: banco contra A/R.
   const pagos = await conn.prepare('SELECT numero, fecha, monto, metodo, cuenta_id FROM pagos WHERE substr(fecha, 1, 10) BETWEEN ? AND ?').all(desde, hasta);
@@ -63,7 +65,7 @@ export async function movimientosApp(desde, hasta, cfg, conn = db) {
 
   // Notas de crédito: las de "Excedente" son plata que entró de más (banco/A-R);
   // el resto es un descuento o crédito (cuenta de ingresos configurable).
-  const ncs = await conn.prepare('SELECT fecha, monto, motivo FROM notas_credito WHERE substr(fecha, 1, 10) BETWEEN ? AND ?').all(desde, hasta);
+  const ncs = await conn.prepare('SELECT fecha, monto, motivo FROM notas_credito WHERE substr(fecha, 1, 10) BETWEEN ? AND ? AND id NOT IN (SELECT recupero_nc_id FROM facturas WHERE recupero_nc_id IS NOT NULL)').all(desde, hasta);
   for (const n of ncs) {
     if (/^excedente/i.test(n.motivo ?? '')) {
       const num = /pago #(\d+)/i.exec(n.motivo ?? '')?.[1];

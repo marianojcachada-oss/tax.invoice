@@ -370,7 +370,7 @@ test('facturas y notas de crédito se pueden editar (solo admin) y queda el usua
   assert.equal(editada.monto, 75);
 
   const rechazo = await fetch(`${baseUrl}/facturas/${factura.id}`, { method: 'PATCH', headers: headersOp, body: JSON.stringify({ monto: 1 }) });
-  assert.equal(rechazo.status, 403);
+  assert.equal(rechazo.status, 202);
 
   const nota = await fetch(`${baseUrl}/notas-credito`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', fecha: '2026-09-01', monto: 30, motivo: 'Original' }) }).then((r) => r.json());
   const notaEditada = await fetch(`${baseUrl}/notas-credito/${nota.id}`, { method: 'PATCH', headers, body: JSON.stringify({ motivo: 'Corregida', monto: 40 }) }).then((r) => r.json());
@@ -548,4 +548,83 @@ test('parser de Zelle detecta cuando la unidad PIDE dinero en vez de enviarlo (s
   // y un envío normal sigue siendo envío (sin resultado de alerta)
   const e = parsearContenido('Juan le envió $155.00', 'Juan le envió $155.00 D135 Consultar su saldo');
   assert.equal(e.resultado, undefined);
+});
+
+// ─── Roles, solicitudes y cierre contable ────────────────────────────
+test('roles: operador pide cambio de monto → solicitud; admin aprueba y se aplica', async () => {
+  await db.prepare("INSERT INTO usuarios (id, nombre, rol, pin_hash, activo) VALUES ('user-sup', 'Super Test', 'supervisor', ?, true) ON CONFLICT DO NOTHING").run(hashPin('4321'));
+  const admin = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  const sup = headersDe(await login('user-sup', '4321'));
+
+  const f = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers: op, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Rol A', monto: 50 }) }).then((r) => r.json());
+
+  // Concepto: lo puede cambiar directo
+  const c = await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: op, body: JSON.stringify({ concepto: 'Rol A2' }) });
+  assert.equal(c.status, 200);
+  assert.equal((await c.json()).concepto, 'Rol A2');
+
+  // Monto: queda pendiente
+  const m = await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: op, body: JSON.stringify({ monto: 70 }) });
+  assert.equal(m.status, 202);
+  const { solicitud, mensaje } = await m.json();
+  assert.match(mensaje, /sector contable/);
+  assert.equal(solicitud.detalle[0].campo, 'Monto');
+  const sin = await fetch(`${baseUrl}/facturas`, { headers: admin }).then((r) => r.json());
+  assert.equal(sin.find((x) => x.id === f.id).monto, 50);
+
+  // El operador no aprueba
+  assert.equal((await fetch(`${baseUrl}/solicitudes/${solicitud.id}/aprobar`, { method: 'POST', headers: op, body: '{}' })).status, 403);
+  const ap = await fetch(`${baseUrl}/solicitudes/${solicitud.id}/aprobar`, { method: 'POST', headers: admin, body: '{}' });
+  assert.equal(ap.status, 200);
+  const despues = await fetch(`${baseUrl}/facturas`, { headers: admin }).then((r) => r.json());
+  assert.equal(despues.find((x) => x.id === f.id).monto, 70);
+
+  // Supervisor edita monto directo
+  assert.equal((await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: sup, body: JSON.stringify({ monto: 75 }) })).status, 200);
+});
+
+test('roles: borrar factura — admin directo, supervisor y operador por solicitud; rechazar no cambia nada', async () => {
+  const admin = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  const sup = headersDe(await login('user-sup', '4321'));
+  const crear = () => fetch(`${baseUrl}/facturas`, { method: 'POST', headers: admin, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Borrar', monto: 10 }) }).then((r) => r.json());
+  const f1 = await crear();
+  const f2 = await crear();
+
+  assert.equal((await fetch(`${baseUrl}/facturas/${f1.id}`, { method: 'DELETE', headers: op })).status, 202);
+  const r2 = await fetch(`${baseUrl}/facturas/${f1.id}`, { method: 'DELETE', headers: sup });
+  assert.equal(r2.status, 202);
+  const sol = (await r2.json()).solicitud;
+  const rech = await fetch(`${baseUrl}/solicitudes/${sol.id}/rechazar`, { method: 'POST', headers: admin, body: JSON.stringify({ nota: 'no' }) });
+  assert.equal(rech.status, 200);
+  assert.ok(await db.prepare('SELECT 1 FROM facturas WHERE id = ?').get(f1.id));
+
+  assert.equal((await fetch(`${baseUrl}/facturas/${f2.id}`, { method: 'DELETE', headers: admin })).status, 200);
+  assert.equal(await db.prepare('SELECT 1 FROM facturas WHERE id = ?').get(f2.id), undefined);
+});
+
+test('roles: informes (operador 403, supervisor lee) y operador de solo lectura en gastos', async () => {
+  const op = headersDe(await login('user-op', '5678'));
+  const sup = headersDe(await login('user-sup', '4321'));
+  assert.equal((await fetch(`${baseUrl}/contabilidad/plan`, { headers: op })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/contabilidad/plan`, { headers: sup })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/contabilidad/asientos`, { method: 'POST', headers: sup, body: '{}' })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/gastos`, { method: 'POST', headers: op, body: '{}' })).status, 403);
+});
+
+test('cierre contable: admin bloquea el período; edición directa 423, operador queda en solicitud', async () => {
+  const admin = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  const f = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers: admin, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Cierre', monto: 20 }) }).then((r) => r.json());
+
+  assert.equal((await fetch(`${baseUrl}/solicitudes/cierre/actual`, { method: 'PUT', headers: op, body: JSON.stringify({ cierreHasta: '2999-12-31' }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/solicitudes/cierre/actual`, { method: 'PUT', headers: admin, body: JSON.stringify({ cierreHasta: '2999-12-31' }) })).status, 200);
+
+  assert.equal((await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: admin, body: JSON.stringify({ concepto: 'x' }) })).status, 423);
+  const o = await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: op, body: JSON.stringify({ concepto: 'x' }) });
+  assert.equal(o.status, 202);
+
+  await fetch(`${baseUrl}/solicitudes/cierre/actual`, { method: 'PUT', headers: admin, body: JSON.stringify({ cierreHasta: null }) });
+  assert.equal((await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: admin, body: JSON.stringify({ concepto: 'x' }) })).status, 200);
 });

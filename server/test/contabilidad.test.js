@@ -7,9 +7,9 @@ import ExcelJS from 'exceljs';
 import { app } from '../src/app.js';
 import { db, pool } from '../src/db.js';
 import { hashPin } from '../src/auth.js';
-import { asegurarPlan } from '../src/contabilidad/config.js';
+import { asegurarPlan, cuentaIngresoDeFee } from '../src/contabilidad/config.js';
 import { cargarArranque } from '../src/contabilidad/importarQB.js';
-import { balanceSheet, profitAndLoss, arAgingSummary, rangoLargo } from '../src/contabilidad/informes.js';
+import { balanceSheet, profitAndLoss, arAgingSummary, apAgingSummary, trialBalance, rangoLargo } from '../src/contabilidad/informes.js';
 import { aXlsx, aCsv, aPdf } from '../src/contabilidad/exportar.js';
 import { aDebeHaber, sumarDias } from '../src/contabilidad/tipos.js';
 
@@ -93,11 +93,40 @@ async function compararConQuickBooks(modelo, archivo) {
 }
 
 test('el Balance Sheet reproduce el de QuickBooks celda por celda (valores, fórmulas, sangrías)', async () => {
-  const r = await balanceSheet({ hasta: '2026-10-20' });
-  assert.equal(r.cuadra, true);
-  assert.equal(r.totalActivos, 69935253);
-  assert.equal(r.netIncome, 131369191);
-  await compararConQuickBooks(r.modelo, 'Balance_Sheet.xlsx');
+  // El archivo original tiene 24500 como pasivo de largo plazo; el estudio indicó que es corriente (ya aplicado al plan).
+  // Para comparar contra el archivo se vuelve a esa clasificación y después se restaura.
+  await balanceSheet({ hasta: '2026-10-20' }); // asegura el plan
+  await db.prepare(`UPDATE plan_cuentas SET tipo = 'Long Term Liabilities', detalle = 'Notes Payable' WHERE numero = '24500'`).run();
+  try {
+    const r = await balanceSheet({ hasta: '2026-10-20' });
+    assert.equal(r.cuadra, true);
+    assert.equal(r.totalActivos, 69935253);
+    assert.equal(r.netIncome, 131369191);
+    await compararConQuickBooks(r.modelo, 'Balance_Sheet.xlsx');
+  } finally {
+    await db.prepare(`UPDATE plan_cuentas SET tipo = 'Other Current Liabilities', detalle = 'Other Current Liabilities' WHERE numero = '24500'`).run();
+  }
+});
+
+test('plan de cuentas ajustado según el estudio: 24500 corriente, 10300 Checking, 60400 Cost of Labor, sin 12700 ni 50020', async () => {
+  await balanceSheet({ hasta: '2026-10-20' });
+  const g = async (n) => db.prepare('SELECT tipo, detalle FROM plan_cuentas WHERE numero = ?').get(n);
+  assert.equal((await g('24500')).tipo, 'Other Current Liabilities');
+  assert.equal((await g('10300')).detalle, 'Checking');
+  assert.equal((await g('60400')).detalle, 'Cost of Labor');
+  assert.equal(await g('12700'), undefined);
+  assert.equal(await g('50020'), undefined);
+});
+
+test('cuenta de ingreso por código de fee, según el estudio', () => {
+  assert.equal(cuentaIngresoDeFee('1090PB'), '40000');
+  assert.equal(cuentaIngresoDeFee('1060RA'), '40001');
+  assert.equal(cuentaIngresoDeFee('1060RI'), '40001');
+  assert.equal(cuentaIngresoDeFee('1060W'), '40002'); // multa
+  assert.equal(cuentaIngresoDeFee('1090ACT'), '40003');
+  assert.equal(cuentaIngresoDeFee('1060RC'), '42000');
+  assert.equal(cuentaIngresoDeFee('XYZ'), '41001'); // otro ingreso
+  assert.equal(cuentaIngresoDeFee('1060W', '40005'), '40005'); // lo elegido a mano manda
 });
 
 test('el Profit and Loss reproduce el de QuickBooks celda por celda', async () => {
@@ -206,4 +235,38 @@ test('API: solo admin; descarga en los tres formatos y falla claro antes del cor
   assert.equal(j.titulo, 'A/R Aging Summary Report');
   const c = await (await fetch(`${baseUrl}/contabilidad/conciliacion?al=2026-10-31`, { headers: { Authorization: `Bearer ${admin}` } })).json();
   assert.equal(c.balanceCuadra, true);
+});
+
+// ─── Trial Balance, A/P Aging y deuda recuperada ─────────────────────
+test('Trial Balance: débitos = créditos, y las cuentas con saldo aparecen una vez', async () => {
+  const r = await trialBalance({ al: '2026-10-20' });
+  assert.equal(r.cuadra, true);
+  assert.equal(r.totalDebito, r.totalCredito);
+  assert.ok(r.totalDebito > 0);
+  assert.deepEqual(r.modelo.columnas, ['Debit', 'Credit']);
+  assert.equal(r.modelo.titulo, 'Trial Balance');
+  const etiquetas = r.modelo.filas.map((f) => f.etiqueta);
+  assert.equal(new Set(etiquetas).size, etiquetas.length);
+  assert.ok(etiquetas.includes('TOTAL'));
+  // se exporta a los tres formatos
+  assert.ok((await aXlsx(r.modelo)).length > 1000);
+  assert.ok(aCsv(r.modelo).includes('Trial Balance'));
+});
+
+test('A/P Aging Summary: bills abiertas por proveedor y antigüedad', async () => {
+  await db.prepare(`INSERT INTO proveedores (id, nombre) VALUES ('pr1', 'Taller Sur')`).run().catch(() => {});
+  await db.prepare(`INSERT INTO bills (id, numero, proveedor_id, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado) VALUES ('b1', 1, 'pr1', '2026-09-01', '2026-09-30', 'Repuestos', 20000, 5000, 'parcial')`).run();
+  const r = await apAgingSummary({ al: '2026-10-31' });
+  assert.equal(r.modelo.titulo, 'A/P Aging Summary');
+  assert.equal(r.total, 15000);
+  const fila = r.modelo.filas.find((f) => f.etiqueta === 'Taller Sur');
+  assert.ok(fila);
+  assert.equal(fila.valores[2], 15000); // vencida hace 31 días -> columna 31 - 60
+});
+
+test('deuda recuperada (1060DR) no genera ingreso: la factura y su saldo a favor no pasan por el libro', async () => {
+  const antes = await profitAndLoss({ desde: '2026-01-01', hasta: '2026-12-31' });
+  await db.prepare(`INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, codigo) VALUES ('fdr', 900, 'c2', 1, '2026-11-02', '2026-11-02', 'Deuda Recuperada', 30000, 0, 'pendiente', '1060DR')`).run();
+  const despues = await profitAndLoss({ desde: '2026-01-01', hasta: '2026-12-31' });
+  assert.equal(despues.netIncome, antes.netIncome);
 });

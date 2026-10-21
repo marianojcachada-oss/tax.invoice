@@ -23,16 +23,20 @@ interface Informe {
   cuadra?: boolean;
 }
 
-type TipoInforme = 'profit-and-loss' | 'balance-sheet' | 'ar-aging-summary';
+type TipoInforme = 'profit-and-loss' | 'balance-sheet' | 'ar-aging-summary' | 'ap-aging-summary' | 'trial-balance';
 const INFORMES: { id: TipoInforme; nombre: string; ayuda: string }[] = [
   { id: 'ar-aging-summary', nombre: 'A/R Aging Summary Report', ayuda: 'Lo que deben las unidades, por antigüedad.' },
   { id: 'profit-and-loss', nombre: 'Profit and Loss', ayuda: 'Ingresos, costos y gastos de un período.' },
   { id: 'balance-sheet', nombre: 'Balance Sheet', ayuda: 'Activos, pasivos y patrimonio a una fecha.' },
+  { id: 'ap-aging-summary', nombre: 'A/P Aging Summary', ayuda: 'Lo que se debe a proveedores, por antigüedad.' },
+  { id: 'trial-balance', nombre: 'Trial Balance', ayuda: 'Saldo deudor y acreedor de cada cuenta a una fecha.' },
 ];
 const ARCHIVOS: Record<TipoInforme, string> = {
   'profit-and-loss': 'TAXI_LASER_LLC_Profit_and_Loss',
   'balance-sheet': 'TAXI_LASER_LLC_Balance_Sheet',
   'ar-aging-summary': 'TAXI_LASER_LLC_A_R_Aging_Summary_Report',
+  'ap-aging-summary': 'TAXI_LASER_LLC_A_P_Aging_Summary',
+  'trial-balance': 'TAXI_LASER_LLC_Trial_Balance',
 };
 
 const num = (c: number) => (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

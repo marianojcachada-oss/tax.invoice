@@ -349,6 +349,32 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS historial_importado BOOLEAN NOT NU
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS numero_qb TEXT;
 ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS numero_qb TEXT;
 
+-- ─── Roles, solicitudes de cambio y cierre contable ──────────────────
+-- Roles: admin (control total), supervisor (ve todo, no borra facturas), operador (crea facturas, recibe pagos, ve clientes).
+ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
+ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('admin', 'supervisor', 'operador'));
+-- Hasta esta fecha (inclusive) los documentos están cerrados: no se editan ni se borran sin autorización.
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS cierre_hasta TEXT;
+-- Cambios que un usuario sin permiso pide y que un administrador aprueba o rechaza.
+CREATE TABLE IF NOT EXISTS solicitudes (
+  id TEXT PRIMARY KEY,
+  tipo TEXT NOT NULL,                 -- editar_factura | eliminar_factura | editar_pago | editar_nota_credito
+  entidad TEXT NOT NULL,
+  entidad_id TEXT NOT NULL,
+  resumen TEXT NOT NULL,
+  detalle TEXT NOT NULL,              -- JSON: [{campo, anterior, nuevo}]
+  payload TEXT NOT NULL,              -- JSON con lo necesario para ejecutar el cambio al aprobarlo
+  motivo TEXT,                        -- por qué hizo falta autorización (rol sin permiso, mes cerrado)
+  solicitante_id TEXT NOT NULL,
+  solicitante TEXT NOT NULL,
+  creada TEXT NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'pendiente',   -- pendiente | aprobada | rechazada | fallida
+  resuelta_por TEXT,
+  resuelta TEXT,
+  nota TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes(estado, creada);
+
 -- Seguridad en Supabase: sus tablas quedan expuestas por una API REST pública
 -- (con la clave "anon") salvo que tengan Row Level Security activado. El servidor
 -- se conecta como dueño de la base y no se ve afectado; con RLS activo y SIN

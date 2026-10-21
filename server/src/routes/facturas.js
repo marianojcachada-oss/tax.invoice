@@ -4,6 +4,7 @@ import { generarId, aCentavos, aDolares, registrarAuditoria } from '../utils.js'
 import { generarFacturaPdf } from '../facturaPdf.js';
 import { enviarMailConAdjunto } from '../email.js';
 import { requiereAdmin } from '../auth.js';
+import { ErrorHttp, ejecutarOSolicitar, esAdmin, periodoCerrado, registrarEjecutor, responderError } from '../permisos.js';
 
 export const facturasRouter = Router();
 
@@ -160,39 +161,105 @@ facturasRouter.post('/generar-semanal', async (req, res) => {
   res.json({ semana, generadas, salteadasInactivos: inactivos, yaExistian, feesAplicados });
 });
 
-facturasRouter.patch('/:id', requiereAdmin, async (req, res) => {
-  const actual = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(req.params.id);
-  if (!actual) return res.status(404).json({ error: 'Factura no encontrada.' });
-
-  const b = req.body;
+/** Qué cambiaría un PATCH (para mostrarlo en la solicitud y en la auditoría). */
+function cambiosDeFactura(actual, b) {
   const cambios = [];
   if (b.concepto !== undefined && b.concepto !== actual.concepto) cambios.push({ campo: 'Concepto', anterior: actual.concepto, nuevo: b.concepto });
   if (b.monto !== undefined && aCentavos(b.monto) !== actual.monto) {
-    cambios.push({ campo: 'Monto', anterior: String(aDolares(actual.monto)), nuevo: String(b.monto) });
+    cambios.push({ campo: 'Monto', anterior: `$${aDolares(actual.monto)}`, nuevo: `$${b.monto}` });
   }
   if (b.fechaVencimiento !== undefined && b.fechaVencimiento !== actual.fecha_vencimiento) {
     cambios.push({ campo: 'Vencimiento', anterior: actual.fecha_vencimiento, nuevo: b.fechaVencimiento });
   }
+  return cambios;
+}
 
+export async function editarFacturaCore(id, b, autor) {
+  const actual = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(id);
+  if (!actual) throw new ErrorHttp(404, 'Factura no encontrada.');
+  const cambios = cambiosDeFactura(actual, b);
   const nuevoMonto = b.monto !== undefined ? aCentavos(b.monto) : actual.monto;
   const estado = actual.monto_pagado >= nuevoMonto ? 'pagada' : actual.monto_pagado > 0 ? 'parcial' : 'pendiente';
 
   await db
     .prepare('UPDATE facturas SET concepto = ?, monto = ?, fecha_vencimiento = ?, estado = ? WHERE id = ?')
-    .run(b.concepto ?? actual.concepto, nuevoMonto, b.fechaVencimiento ?? actual.fecha_vencimiento, estado, req.params.id);
+    .run(b.concepto ?? actual.concepto, nuevoMonto, b.fechaVencimiento ?? actual.fecha_vencimiento, estado, id);
 
   if (cambios.length > 0) {
-    await registrarAuditoria({
-      usuario: req.usuario.nombre,
-      accion: 'Editó factura',
-      entidad: 'Factura',
-      entidadId: req.params.id,
-      resumen: `Se corrigió la factura #${actual.numero}`,
-      cambios,
-    });
+    await registrarAuditoria({ usuario: autor, accion: 'Editó factura', entidad: 'Factura', entidadId: id, resumen: `Se corrigió la factura #${actual.numero}`, cambios });
   }
-  const actualizada = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(req.params.id);
-  res.json(serializar(actualizada));
+  return serializar(await db.prepare('SELECT * FROM facturas WHERE id = ?').get(id));
+}
+
+export async function eliminarFacturaCore(id, autor) {
+  const f = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(id);
+  if (!f) throw new ErrorHttp(404, 'Factura no encontrada.');
+  if (f.monto_pagado > 0) throw new ErrorHttp(409, `La factura #${f.numero} ya tiene $${aDolares(f.monto_pagado)} aplicados (pagos o notas de crédito). Primero hay que desaplicarlos.`);
+  const ref = await db.prepare('SELECT COUNT(*)::int AS n FROM pago_aplicaciones WHERE factura_id = ?').get(id);
+  if (ref.n > 0) throw new ErrorHttp(409, `La factura #${f.numero} tiene pagos aplicados.`);
+  await db.transaction(async (tx) => {
+    await tx.prepare('DELETE FROM nota_credito_facturas WHERE factura_id = ?').run(id);
+    await tx.prepare('UPDATE facturas SET recupero_nc_id = NULL WHERE id = ? AND recupero_nc_id IS NOT NULL').run(id);
+    await tx.prepare('DELETE FROM facturas WHERE id = ?').run(id);
+  });
+  await registrarAuditoria({
+    usuario: autor,
+    accion: 'Eliminó factura',
+    entidad: 'Factura',
+    entidadId: id,
+    resumen: `Se eliminó la factura #${f.numero} (${f.concepto}, $${aDolares(f.monto)})`,
+  });
+  return { ok: true, id };
+}
+
+registrarEjecutor('editar_factura', (p, { autor }) => editarFacturaCore(p.id, p.cambios, autor));
+registrarEjecutor('eliminar_factura', (p, { autor }) => eliminarFacturaCore(p.id, autor));
+
+// Cualquier rol puede corregir el concepto. Monto y vencimiento: operador pide autorización.
+facturasRouter.patch('/:id', async (req, res, next) => {
+  try {
+    const actual = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(req.params.id);
+    if (!actual) throw new ErrorHttp(404, 'Factura no encontrada.');
+    const b = req.body ?? {};
+    const detalle = cambiosDeFactura(actual, b);
+    if (detalle.length === 0) return res.json(serializar(actual));
+    const soloConcepto = detalle.every((c) => c.campo === 'Concepto');
+    await ejecutarOSolicitar(req, res, {
+      tipo: 'editar_factura',
+      entidad: 'Factura',
+      entidadId: actual.id,
+      fecha: actual.fecha,
+      resumen: `Corregir la factura #${actual.numero} de ${(await db.prepare('SELECT nombre FROM clientes WHERE id = ?').get(actual.cliente_id))?.nombre ?? ''}`.trim(),
+      detalle,
+      payload: { id: actual.id, cambios: { concepto: b.concepto, monto: b.monto, fechaVencimiento: b.fechaVencimiento } },
+      permitido: soloConcepto || req.usuario.rol !== 'operador',
+      aplicar: () => editarFacturaCore(actual.id, b, req.usuario.nombre),
+    });
+  } catch (e) {
+    responderError(res, e, next);
+  }
+});
+
+// Borrar facturas: solo administradores; el resto queda como solicitud.
+facturasRouter.delete('/:id', async (req, res, next) => {
+  try {
+    const f = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(req.params.id);
+    if (!f) throw new ErrorHttp(404, 'Factura no encontrada.');
+    const cli = await db.prepare('SELECT nombre FROM clientes WHERE id = ?').get(f.cliente_id);
+    await ejecutarOSolicitar(req, res, {
+      tipo: 'eliminar_factura',
+      entidad: 'Factura',
+      entidadId: f.id,
+      fecha: f.fecha,
+      resumen: `Eliminar la factura #${f.numero} de ${cli?.nombre ?? ''}`.trim(),
+      detalle: [{ campo: 'Factura', anterior: `#${f.numero} · ${f.concepto} · $${aDolares(f.monto)}`, nuevo: '(se elimina)' }],
+      payload: { id: f.id },
+      permitido: esAdmin(req.usuario),
+      aplicar: () => eliminarFacturaCore(f.id, req.usuario.nombre),
+    });
+  } catch (e) {
+    responderError(res, e, next);
+  }
 });
 
 export async function datosParaPdf(facturaId) {

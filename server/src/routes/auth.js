@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { generarId, registrarAuditoria } from '../utils.js';
 import { hashPin, verificarPin, crearToken, requiereSesion, requiereAdmin } from '../auth.js';
+import { ROLES } from '../permisos.js';
 
 export const authRouter = Router();
 
@@ -59,6 +60,7 @@ authRouter.get('/usuarios', requiereSesion, requiereAdmin, async (req, res) => {
 
 authRouter.post('/usuarios', requiereSesion, requiereAdmin, async (req, res) => {
   const { nombre, email, rol, pin } = req.body;
+  if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   if (!nombre || !rol || !pin || pin.length !== 4) {
     return res.status(400).json({ error: 'Faltan datos (nombre, rol, pin de 4 dígitos).' });
   }
@@ -81,6 +83,7 @@ authRouter.patch('/usuarios/:id', requiereSesion, requiereAdmin, async (req, res
   if (!actual) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
   const rol = req.body.rol ?? actual.rol;
+  if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   const activo = req.body.activo !== undefined ? !!req.body.activo : actual.activo;
   const pinHash = req.body.pin ? hashPin(req.body.pin) : actual.pin_hash;
 

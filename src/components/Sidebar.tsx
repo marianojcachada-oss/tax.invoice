@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle, FileSpreadsheet } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle, FileSpreadsheet, ClipboardCheck } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useDataStore } from '../data/DataContext';
+import { api } from '../data/apiClient';
 import { Wordmark } from './Wordmark';
 
 // Colores fijos del sidebar (no dependen de --color-* / modo claro-oscuro):
@@ -21,7 +22,7 @@ const SB = {
   activeBorder: '#21453A',
 };
 
-type Item = { to: string; label: string; end?: boolean; icon: ComponentType<{ size?: number; strokeWidth?: number }>; soloAdmin?: boolean };
+type Item = { to: string; label: string; end?: boolean; icon: ComponentType<{ size?: number; strokeWidth?: number }>; soloAdmin?: boolean; soloInformes?: boolean };
 const GRUPOS: { titulo: string | null; items: Item[] }[] = [
   { titulo: null, items: [{ to: '/', label: 'Inicio', end: true, icon: Home }] },
   {
@@ -42,14 +43,15 @@ const GRUPOS: { titulo: string | null; items: Item[] }[] = [
   {
     titulo: 'Análisis',
     items: [
-      { to: '/reportes', label: 'Reportes', icon: BarChart3 },
-      { to: '/informes', label: 'Informes contables', icon: FileSpreadsheet, soloAdmin: true },
+      { to: '/reportes', label: 'Reportes', icon: BarChart3, soloInformes: true },
+      { to: '/informes', label: 'Informes contables', icon: FileSpreadsheet, soloInformes: true },
       { to: '/auditoria', label: 'Auditoría', icon: History, soloAdmin: true },
     ],
   },
   {
     titulo: 'Sistema',
     items: [
+      { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardCheck },
       { to: '/configuracion', label: 'Configuración', icon: Settings, soloAdmin: true },
       { to: '/ayuda', label: 'Ayuda', icon: HelpCircle },
     ],
@@ -59,6 +61,8 @@ const GRUPOS: { titulo: string | null; items: Item[] }[] = [
 export function Sidebar({ abierto, onClose }: { abierto: boolean; onClose: () => void }) {
   const { usuarioActual, cerrarSesion, getPagosEmail } = useDataStore();
   const esAdmin = usuarioActual?.rol === 'admin';
+  const veInformes = esAdmin || usuarioActual?.rol === 'supervisor';
+  const [solPendientes, setSolPendientes] = useState(0);
   const [mailsPendientes, setMailsPendientes] = useState(0);
   const [mailsRojos, setMailsRojos] = useState(0);
 
@@ -72,6 +76,16 @@ export function Sidebar({ abierto, onClose }: { abierto: boolean; onClose: () =>
     return () => { vivo = false; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [esAdmin]);
+
+  // Contador de solicitudes pendientes (todas si sos admin, las tuyas si no)
+  useEffect(() => {
+    let vivo = true;
+    const cargar = () => api.get<{ cantidad: number }>('/solicitudes/pendientes').then((r) => { if (vivo) setSolPendientes(r.cantidad); }).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 60000);
+    window.addEventListener('tax:solicitudes-cambiaron', cargar);
+    return () => { vivo = false; clearInterval(t); window.removeEventListener('tax:solicitudes-cambiaron', cargar); };
+  }, []);
 
   return (
     <>
@@ -91,7 +105,7 @@ export function Sidebar({ abierto, onClose }: { abierto: boolean; onClose: () =>
 
         <nav aria-label="Principal" className="flex flex-col gap-[2px] px-2.5 overflow-y-auto">
           {GRUPOS.map((g) => {
-            const items = g.items.filter((item) => !item.soloAdmin || esAdmin);
+            const items = g.items.filter((item) => (!item.soloAdmin || esAdmin) && (!item.soloInformes || veInformes));
             if (items.length === 0) return null;
             return (
               <div key={g.titulo ?? 'top'} className="flex flex-col gap-[2px]">
@@ -117,6 +131,9 @@ export function Sidebar({ abierto, onClose }: { abierto: boolean; onClose: () =>
                     >
                       <Icon size={15} strokeWidth={2} />
                       <span className="flex-1">{item.label}</span>
+                      {item.to === '/solicitudes' && solPendientes > 0 && (
+                        <span role="status" aria-label={`${solPendientes} solicitudes pendientes`} style={{ background: SB.mint, color: '#0c1f17' }} className="min-w-[20px] h-[18px] px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center num">{solPendientes}</span>
+                      )}
                       {item.to === '/cobros' && mailsPendientes > 0 && (
                         <span role="status" aria-label={`${mailsPendientes} pagos por mail pendientes${mailsRojos > 0 ? `, ${mailsRojos} rechazados o solicitudes` : ''}`} style={mailsRojos > 0 ? { background: '#E2685A', color: '#1a0805' } : { background: SB.mint, color: '#0c1f17' }} className="min-w-[20px] h-[18px] px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center num">
                           {mailsPendientes}{mailsRojos > 0 ? '!' : ''}

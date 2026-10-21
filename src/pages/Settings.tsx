@@ -1,3 +1,4 @@
+import { ImportTransactionHistoryModal } from '../components/ImportTransactionHistoryModal';
 import { useState } from 'react';
 import { useDataStore } from '../data/DataContext';
 import { api } from '../data/apiClient';
@@ -27,6 +28,7 @@ const inputCls = 'w-full border border-line rounded-[5px] bg-surface px-2.5 py-1
 const fieldLabelCls = 'text-ink-faint text-[10.5px] uppercase tracking-wide font-medium mb-1';
 
 export function Settings() {
+  const [importarHistorialAbierto, setImportarHistorialAbierto] = useState(false);
   const { configuracion, actualizarConfiguracion, usuarioActual, usuarios, agregarUsuario, actualizarUsuario, borrarTodo } = useDataStore();
   const [cuota, setCuota] = useState(configuracion.cuotaSemanalPorDefecto);
   const [dia, setDia] = useState<ConfigDia>(configuracion.diaEmision);
@@ -330,6 +332,13 @@ export function Settings() {
           {mailPrueba && <span className={`text-[12px] ${mailPrueba.ok ? 'text-success' : 'text-danger-dark'}`}>{mailPrueba.texto}</span>}
         </div>
       </div>
+
+      <div className="panel p-5">
+        <div className="th-label mb-1">Migración desde QuickBooks</div>
+        <p className="text-ink-soft text-[12.5px] mb-3">Cargá el historial de transacciones exportado de QuickBooks (facturas y pagos). Se usa durante la migración, no en el día a día.</p>
+        <button className="btn-outline" onClick={() => setImportarHistorialAbierto(true)}>Importar historial</button>
+      </div>
+      {importarHistorialAbierto && <ImportTransactionHistoryModal onClose={() => setImportarHistorialAbierto(false)} />}
 
       <div className="panel p-5">
         <div className="flex items-center justify-between mb-3">

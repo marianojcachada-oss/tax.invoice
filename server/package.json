@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/index.js",
     "start": "node --env-file=.env src/index.js",
-    "start:prod": "node src/index.js",
+    "start:prod": "node --max-old-space-size=384 src/index.js",
     "crear-admin": "node --env-file=.env src/crearAdmin.js",
     "seed": "node --env-file=.env src/seed.js",
     "test": "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taxi_cobros_test JWT_SECRET=test-secret node --test --test-concurrency=1 test/*.test.js"

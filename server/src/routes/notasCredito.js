@@ -34,8 +34,34 @@ async function serializar(row) {
 }
 
 notasCreditoRouter.get('/', async (req, res) => {
+  // Consultas en bloque (antes una o dos por cada nota: con miles de notas agotaba la memoria).
   const filas = await db.prepare('SELECT * FROM notas_credito ORDER BY fecha DESC').all();
-  res.json(await Promise.all(filas.map(serializar)));
+  const aplicadas = new Map();
+  for (const r of await db.prepare('SELECT nota_id, factura_id FROM nota_credito_facturas').all()) {
+    if (!aplicadas.has(r.nota_id)) aplicadas.set(r.nota_id, []);
+    aplicadas.get(r.nota_id).push(r.factura_id);
+  }
+  const origenes = new Map();
+  for (const o of await db.prepare('SELECT id, numero, cliente_id FROM facturas WHERE id IN (SELECT origen_factura_id FROM notas_credito WHERE origen_factura_id IS NOT NULL)').all()) origenes.set(o.id, o);
+  res.json(
+    filas.map((row) => {
+      const o = row.origen_factura_id ? origenes.get(row.origen_factura_id) : undefined;
+      return {
+        origenFacturaId: row.origen_factura_id ?? undefined,
+        origenFacturaNumero: o?.numero,
+        origenClienteId: o?.cliente_id,
+        id: row.id,
+        numero: row.numero,
+        clienteId: row.cliente_id,
+        fecha: row.fecha,
+        monto: aDolares(row.monto),
+        montoAplicado: aDolares(row.monto_aplicado),
+        motivo: row.motivo,
+        aplicada: !!row.aplicada,
+        facturasAplicadas: aplicadas.get(row.id) ?? [],
+      };
+    })
+  );
 });
 
 notasCreditoRouter.post('/', async (req, res) => {

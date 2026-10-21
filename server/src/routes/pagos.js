@@ -30,8 +30,27 @@ async function recalcularEstadoFactura(tx, facturaId) {
 }
 
 pagosRouter.get('/', async (req, res) => {
+  // Dos consultas en total (antes era una por cada pago: con decenas de miles de pagos agotaba la memoria).
   const filas = await db.prepare('SELECT * FROM pagos ORDER BY fecha DESC').all();
-  res.json(await Promise.all(filas.map((f) => serializarPago(f))));
+  const porPago = new Map();
+  for (const a of await db.prepare('SELECT pago_id, factura_id, monto FROM pago_aplicaciones').all()) {
+    if (!porPago.has(a.pago_id)) porPago.set(a.pago_id, []);
+    porPago.get(a.pago_id).push({ facturaId: a.factura_id, monto: aDolares(a.monto) });
+  }
+  res.json(
+    filas.map((row) => ({
+      id: row.id,
+      numero: row.numero,
+      clienteId: row.cliente_id,
+      fecha: row.fecha,
+      monto: aDolares(row.monto),
+      metodo: row.metodo,
+      referencia: row.referencia ?? undefined,
+      cuentaId: row.cuenta_id ?? undefined,
+      aplicaciones: porPago.get(row.id) ?? [],
+      editado: !!row.editado,
+    }))
+  );
 });
 
 pagosRouter.post('/', async (req, res) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDataStore } from '../data/DataContext';
 import type { Cliente } from '../types';
+import { AltaFacturaModal } from './AltaFacturaModal';
 
 interface Props {
   cliente?: Cliente; // si viene, es edición; si no, es alta
@@ -24,7 +25,9 @@ export function ClientFormModal({ cliente, onClose }: Props) {
   const [notas, setNotas] = useState(cliente?.notas ?? '');
   const [error, setError] = useState<string | null>(null);
 
-  function handleGuardar() {
+  const [altaPara, setAltaPara] = useState<Cliente | null>(null);
+
+  async function handleGuardar() {
     const cuota = Number(cuotaSemanal);
     if (!codigo.trim()) return setError('El código (el ID de TaxiCaller) es obligatorio.');
     if (!nombre.trim()) return setError('El nombre es obligatorio.');
@@ -44,7 +47,7 @@ export function ClientFormModal({ cliente, onClose }: Props) {
         notas: notas.trim() || undefined,
       });
     } else {
-      agregarCliente({
+      const nuevo = await agregarCliente({
         codigo: codigo.trim(),
         numero: numero.trim() || String(100000 + Math.floor(Math.random() * 9000)),
         nombre: nombre.trim(),
@@ -57,9 +60,13 @@ export function ClientFormModal({ cliente, onClose }: Props) {
         estado: 'activo',
         notas: notas.trim() || undefined,
       });
+      setAltaPara(nuevo); // pop-up para facturar la cuota semanal y la reinscripción
+      return;
     }
     onClose();
   }
+
+  if (altaPara) return <AltaFacturaModal cliente={altaPara} sugerido="RI" onClose={onClose} />;
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-start justify-center pt-14 z-50 overflow-y-auto pb-10" onClick={onClose}>

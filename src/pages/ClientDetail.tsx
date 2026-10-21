@@ -11,6 +11,7 @@ import { CreateCreditMemoModal } from '../components/CreateCreditMemoModal';
 import { ApplyCreditMemoModal } from '../components/ApplyCreditMemoModal';
 import { DocumentAuditHistory } from '../components/DocumentAuditHistory';
 import { PaymentPlanModal } from '../components/PaymentPlanModal';
+import { AltaFacturaModal } from '../components/AltaFacturaModal';
 import { FileText, Trash2, ArrowLeft } from 'lucide-react';
 import type { Pago, Factura, NotaCredito, DocumentoCliente, Reembolso } from '../types';
 
@@ -37,7 +38,6 @@ export function ClientDetail() {
   const [notaAAplicar, setNotaAAplicar] = useState<NotaCredito | null>(null);
   const [planPagoAbierto, setPlanPagoAbierto] = useState(false);
   const [mensajeRecordatorio, setMensajeRecordatorio] = useState<string | null>(null);
-  const [mensajeReactivacion, setMensajeReactivacion] = useState<string | null>(null);
   const [enviandoRecordatorio, setEnviandoRecordatorio] = useState(false);
   const [subiendoDocumento, setSubiendoDocumento] = useState(false);
   const [errorDocumento, setErrorDocumento] = useState<string | null>(null);
@@ -150,13 +150,12 @@ export function ClientDetail() {
     }
   }
 
+  const [altaSugerido, setAltaSugerido] = useState<'RA' | 'RI' | null>(null);
+
   async function handleReactivar() {
     if (!cliente) return;
     const fee = await actualizarCliente(cliente.id, { estado: 'activo' });
-    if (fee) {
-      setMensajeReactivacion(`Se facturó automáticamente ${fee.etiqueta} ($${fee.monto}, ${fee.codigo}) por reactivarse.`);
-      setTimeout(() => setMensajeReactivacion(null), 8000);
-    }
+    setAltaSugerido(fee?.codigo === '1090RA' ? 'RA' : 'RI');
   }
 
   async function handleEnviarRecordatorio() {
@@ -172,6 +171,7 @@ export function ClientDetail() {
 
   return (
     <div className="px-6 md:px-8 py-6 max-w-[1400px]">
+      {altaSugerido && <AltaFacturaModal cliente={cliente} sugerido={altaSugerido} onClose={() => setAltaSugerido(null)} />}
       <button className="flex items-center gap-1.5 text-ink-soft text-[12.5px] hover:text-accent mb-4" onClick={() => navigate('/clientes')}>
         <ArrowLeft size={13} /> Clientes
       </button>
@@ -510,7 +510,6 @@ export function ClientDetail() {
         )}
         {cliente.estado === 'inactivo' && <span className="chip">Dado de baja</span>}
         {mensajeRecordatorio && <span className="text-ink-soft text-[12px]">{mensajeRecordatorio}</span>}
-        {mensajeReactivacion && <span className="text-accent text-[12px] font-medium">{mensajeReactivacion}</span>}
       </div>
 
       {modalAbierto && <PaymentModal clienteId={cliente.id} onClose={() => setModalAbierto(false)} />}

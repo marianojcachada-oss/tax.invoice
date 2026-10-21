@@ -138,7 +138,7 @@ contabilidadRouter.get('/mapeos', async (req, res) => {
   const fees = await db.prepare('SELECT id, codigo, etiqueta, cuenta_ingreso FROM catalogo_fees ORDER BY orden, codigo').all();
   const cuentas = await db.prepare('SELECT id, nombre, tipo, cuenta_contable FROM cuentas ORDER BY nombre').all();
   res.json({
-    fees: fees.map((f) => ({ id: f.id, codigo: f.codigo, etiqueta: f.etiqueta, cuentaIngreso: f.cuenta_ingreso ?? null, cuentaPorDefecto: cuentaIngresoDeFee(f.codigo, null), esIngreso: f.codigo !== '1060DR' })),
+    fees: fees.map((f) => ({ id: f.id, codigo: f.codigo, etiqueta: f.etiqueta, cuentaIngreso: f.cuenta_ingreso ?? null, cuentaPorDefecto: cuentaIngresoDeFee(f.codigo, null), esIngreso: f.codigo !== '1090DR' })),
     cuentas: cuentas.map((c) => ({ id: c.id, nombre: c.nombre, tipo: c.tipo, cuentaContable: c.cuenta_contable ?? null })),
   });
 });

@@ -35,10 +35,10 @@ export interface Factura {
   monto: number;
   montoPagado: number;
   estado: EstadoFactura;
-  codigo?: string; // código del catálogo de fees usado (1060NL, 1090PB, etc.), si vino de ahí
+  codigo?: string; // código del catálogo de fees usado (1090NL, 1090PB, etc.), si vino de ahí
   creadoPor?: string; // nombre del usuario que la creó
-  beneficiarioId?: string; // 1060DR: unidad que recibirá el saldo a favor (1060SAF) cuando se pague
-  recuperoNcId?: string; // nota de crédito 1060SAF ya generada a partir de esta factura
+  beneficiarioId?: string; // 1090DR: unidad que recibirá el saldo a favor (1090SAF) cuando se pague
+  recuperoNcId?: string; // nota de crédito 1090SAF ya generada a partir de esta factura
 }
 
 export interface ItemCatalogoFee {
@@ -83,7 +83,7 @@ export interface NotaCredito {
   motivo: string;
   aplicada: boolean;
   facturasAplicadas: string[]; // ids de Factura a las que se aplicó
-  origenFacturaId?: string; // si nació de una factura 1060DR pagada
+  origenFacturaId?: string; // si nació de una factura 1090DR pagada
   origenFacturaNumero?: number;
   origenClienteId?: string; // unidad que recuperó el dinero
 }
@@ -195,6 +195,7 @@ export interface Cuenta {
   nombre: string; // ej. "Chase", "Bank of America", "Petty Cash", "Zelle"
   tipo: TipoCuenta;
   saldoInicial: number;
+  cuentaContable?: string; // 10201 BofA 9859, 10200 BofA 1611, 14500 Undeposited Funds
 }
 
 export interface Transferencia {

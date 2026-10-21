@@ -1,6 +1,6 @@
 import { ImportTransactionHistoryModal } from '../components/ImportTransactionHistoryModal';
 import { useEffect, useState } from 'react';
-import { DollarSign, CalendarClock, CalendarDays, CreditCard, Building2, Mail, ArrowRightLeft, Bell, Phone, Users, DatabaseBackup, TriangleAlert, ListChecks, Lock, type LucideIcon } from 'lucide-react';
+import { DollarSign, CalendarClock, CalendarDays, CreditCard, Building2, Mail, ArrowRightLeft, Bell, Phone, Users, DatabaseBackup, TriangleAlert, ListChecks, Lock, UserMinus, type LucideIcon } from 'lucide-react';
 import { useDataStore } from '../data/DataContext';
 import { api } from '../data/apiClient';
 import { ROL_DESCRIPCION, ROL_ETIQUETA, type MetodoPago, type RolUsuario } from '../types';
@@ -86,6 +86,24 @@ export function Settings() {
     }
   }
 
+  const [baja, setBaja] = useState<{ activa: boolean; dia: string; hora: string; ultima: string | null }>({ activa: false, dia: 'mie', hora: '00:00', ultima: null });
+  const [bajaMsg, setBajaMsg] = useState<string | null>(null);
+  const [bajaPrevia, setBajaPrevia] = useState<{ codigo: string; nombre: string }[] | null>(null);
+  useEffect(() => {
+    if (usuarioActual?.rol !== 'admin') return;
+    api.get<typeof baja>('/baja-automatica').then(setBaja).catch(() => {});
+  }, [usuarioActual?.rol]);
+
+  async function guardarBaja(nueva: typeof baja) {
+    setBaja(nueva);
+    try {
+      setBaja(await api.put<typeof baja>('/baja-automatica', nueva));
+      setBajaMsg('Guardado ✓');
+    } catch (e) {
+      setBajaMsg(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
+  }
+
   if (usuarioActual?.rol !== 'admin') {
     return (
       <div className="px-6 md:px-8 py-6">
@@ -167,7 +185,7 @@ export function Settings() {
         {[
           ['cuota', 'Cuota', DollarSign], ['emision', 'Emisión', CalendarClock], ['precios', 'Precios', CalendarDays], ['metodos', 'Métodos de pago', CreditCard],
           ['empresa', 'Empresa', Building2], ['mail', 'Mail', Mail], ['migracion', 'Migración', ArrowRightLeft], ['recordatorios', 'Recordatorios', Bell],
-          ['usuarios', 'Usuarios', Users], ['cierre', 'Cierre contable', Lock], ['catalogo', 'Catálogo de fees', ListChecks], ['respaldo', 'Respaldo', DatabaseBackup],
+          ['usuarios', 'Usuarios', Users], ['cierre', 'Cierre contable', Lock], ['baja', 'Baja automática', UserMinus], ['catalogo', 'Catálogo de fees', ListChecks], ['respaldo', 'Respaldo', DatabaseBackup],
         ].map(([id, nombre, Icono]) => {
           const I = Icono as LucideIcon;
           return (
@@ -512,6 +530,47 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
+        <div className="mb-2"><Cab icono={UserMinus} id="baja">Baja automática por falta de pago</Cab></div>
+        <div className="text-ink-faint text-[11px] mb-3">
+          Si está activa, el sistema pasa a inactivo (una vez por día, a partir de la hora elegida, hora de Atlanta) a quien no pagó
+          la cuota semanal 1090PB vencida. Un cliente inactivo se vuelve a dar de alta a mano desde su ficha.
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <label className="flex items-center gap-2 text-[13px]">
+            <input type="checkbox" checked={baja.activa} onChange={(e) => guardarBaja({ ...baja, activa: e.target.checked })} /> Activada
+          </label>
+          <select aria-label="Día de la baja" value={baja.dia} onChange={(e) => guardarBaja({ ...baja, dia: e.target.value })} className="border border-line rounded-[5px] bg-surface px-2 py-1.5 text-[13px]">
+            {[['lun', 'Lunes'], ['mar', 'Martes'], ['mie', 'Miércoles'], ['jue', 'Jueves'], ['vie', 'Viernes'], ['sab', 'Sábado'], ['dom', 'Domingo']].map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+          <input aria-label="Hora de la baja" type="time" value={baja.hora} onChange={(e) => e.target.value && guardarBaja({ ...baja, hora: e.target.value })} className="border border-line rounded-[5px] bg-surface px-2 py-1.5 text-[13px]" />
+          <button className="btn-outline" onClick={async () => setBajaPrevia((await api.get<{ clientes: { codigo: string; nombre: string }[] }>('/baja-automatica/vista-previa')).clientes)}>Ver quién quedaría de baja</button>
+        </div>
+        {bajaMsg && <div className="text-sm text-ink-soft mt-2">{bajaMsg}</div>}
+        {baja.ultima && <div className="text-ink-faint text-[11.5px] mt-1">Última corrida: {baja.ultima}</div>}
+        {bajaPrevia && (
+          <div className="mt-3 text-[13px]">
+            {bajaPrevia.length === 0 ? 'Nadie queda de baja ahora mismo.' : (
+              <>
+                <div className="font-medium mb-1">{bajaPrevia.length} cliente(s) sin pagar la cuota semanal:</div>
+                <div className="text-ink-soft">{bajaPrevia.map((c) => `${c.codigo} ${c.nombre}`).join(' · ')}</div>
+                <button
+                  className="btn-outline mt-2"
+                  onClick={async () => {
+                    if (!window.confirm(`¿Pasar ${bajaPrevia.length} cliente(s) a inactivo ahora?`)) return;
+                    await api.post('/baja-automatica/ejecutar');
+                    setBajaPrevia(null);
+                    setBajaMsg('Listo: pasaron a inactivo. Recargá la lista de clientes para verlos.');
+                  }}
+                >
+                  Dar de baja ahora
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="panel p-5">
         <div className="mb-2"><Cab icono={Lock} id="cierre">Cierre contable</Cab></div>
         <div className="text-ink-faint text-[11px] mb-3">
           Las facturas, pagos y notas con fecha hasta el día elegido quedan bloqueadas: nadie las modifica directo
@@ -598,7 +657,7 @@ function CatalogoFeesPanel() {
       <div className="text-ink-faint text-[11px] mb-3">
         Los ítems que agregues acá aparecen como desplegable al crear una factura manual —
         el precio se autocompleta solo (editable), y queda un "Otro" al final para cargar
-        motivo y monto a mano cuando no está en la lista. Ej: código <code>1060RI</code>,
+        motivo y monto a mano cuando no está en la lista. Ej: código <code>1090RI</code>,
         etiqueta "Reinscripción", monto 25.
       </div>
 
@@ -642,7 +701,7 @@ function CatalogoFeesPanel() {
       <div className="grid grid-cols-[1fr_1.6fr_.7fr_auto] gap-2.5 items-end">
         <div>
           <div className={fieldLabelCls}>Código</div>
-          <input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="1060RI" className={`${inputCls} num`} />
+          <input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="1090RI" className={`${inputCls} num`} />
         </div>
         <div>
           <div className={fieldLabelCls}>Etiqueta</div>

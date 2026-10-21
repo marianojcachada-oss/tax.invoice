@@ -1,4 +1,5 @@
 import { app } from './app.js';
+import { revisarBajaAutomatica } from './bajaAutomatica.js';
 import { sincronizarPagosEmail, bandejaConfigurada } from './routes/pagosEmail.js';
 
 const PORT = process.env.PORT || 4000;
@@ -28,3 +29,10 @@ if (cadaSeg > 0 && bandejaConfigurada()) {
   setInterval(revisar, cadaSeg * 1000);
   console.log(`Bandeja de pagos por mail: revisando el buzón cada ${cadaSeg}s.`);
 }
+
+// Baja automática de quien no pagó la cuota semanal (si la administración la activó en Configuración).
+setInterval(() => {
+  revisarBajaAutomatica()
+    .then((r) => { if (r) console.log(`[baja automática] ${r.cantidad} cliente(s) pasaron a inactivo`); })
+    .catch((e) => console.error('[baja automática]', e.message));
+}, 5 * 60 * 1000);

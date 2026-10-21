@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle, FileSpreadsheet, ClipboardCheck } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, Settings, Truck, Landmark, History, X, LogOut, HelpCircle, FileSpreadsheet, ClipboardCheck, Inbox } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useDataStore } from '../data/DataContext';
 import { api } from '../data/apiClient';
@@ -38,6 +38,7 @@ const GRUPOS: { titulo: string | null; items: Item[] }[] = [
       { to: '/proveedores', label: 'Proveedores', icon: Truck },
       { to: '/gastos', label: 'Gastos', icon: Wallet },
       { to: '/cuentas', label: 'Cuentas', icon: Landmark },
+      { to: '/undeposited', label: 'Undeposited', icon: Inbox, soloAdmin: true },
     ],
   },
   {

@@ -13,30 +13,30 @@ export const catalogoFeesRouter = Router();
 // factura, no se auto-completan.
 const CATALOGO_ESTANDAR = [
   ['1090PB', 'Pago de base / cuota semanal', 145],
-  ['1060RA', 'Reactivación', 10],
-  ['1060RI', 'Reinscripción', 20],
-  ['1060CA', 'Ceder el app a un tercero', 500],
-  ['1060VNR', 'Trabajar en vehículo distinto al que está en sistema', 100],
-  ['1060TA', 'Trabajar acompañado', 100],
-  ['1060VS', 'Vehículo sucio', 20],
-  ['1060PNR', 'Trabajar con una placa distinta a la registrada en el sistema', 50],
-  ['1060MNCFA', 'Dar servicios a clientes por fuera de la app', 250],
-  ['1060NI', 'Negarse a inspección', 100],
-  ['1060DS', 'Demorar o rechazar hacer un servicio después de aceptarlo', 20],
-  ['1060RFM', 'Revisión por falla mecánica', 10],
-  ['1060CI', 'Cobros indebidos', 50],
-  ['1060RC', 'Reclamos de cliente (motivos varios) — rango $20 a $50, cargar a mano', 0],
-  ['1060W', 'Warning', 10],
-  ['1060R20', 'Retirarse del 20 sin autorización / cerrar un servicio para no realizarlo', 50],
-  ['1060CE', 'Recoger cliente distinto al de la información', 20],
-  ['1060RE', 'Re-entrenamiento', 20],
+  ['1090RA', 'Reactivación', 10],
+  ['1090RI', 'Reinscripción', 20],
+  ['1090CA', 'Ceder el app a un tercero', 500],
+  ['1090VNR', 'Trabajar en vehículo distinto al que está en sistema', 100],
+  ['1090TA', 'Trabajar acompañado', 100],
+  ['1090VS', 'Vehículo sucio', 20],
+  ['1090PNR', 'Trabajar con una placa distinta a la registrada en el sistema', 50],
+  ['1090MNCFA', 'Dar servicios a clientes por fuera de la app', 250],
+  ['1090NI', 'Negarse a inspección', 100],
+  ['1090DS', 'Demorar o rechazar hacer un servicio después de aceptarlo', 20],
+  ['1090RFM', 'Revisión por falla mecánica', 10],
+  ['1090CI', 'Cobros indebidos', 50],
+  ['1090RC', 'Reclamos de cliente (motivos varios) — rango $20 a $50, cargar a mano', 0],
+  ['1090W', 'Warning', 10],
+  ['1090R20', 'Retirarse del 20 sin autorización / cerrar un servicio para no realizarlo', 50],
+  ['1090CE', 'Recoger cliente distinto al de la información', 20],
+  ['1090RE', 'Re-entrenamiento', 20],
   ['1040CB', 'Irrespetar a la Base o a la Administración', 50],
-  ['1060NRC', 'No responder copias', 10],
-  ['1060D5C', 'Dejar 10-5 a un compañero', 20],
-  ['1060RP', 'Reparación de daño pendiente', 20],
-  ['1060MUA', 'Mal uso de aplicación — rango $20 a $30, cargar a mano', 0],
-  ['1060NSN', 'Dejar cliente 10-5 por no cargar silla para niños o boosters', 20],
-  ['1060ED', 'Error de dirección (salir a otro 10-20 o a la dirección del destino anterior)', 10],
+  ['1090NRC', 'No responder copias', 10],
+  ['1090D5C', 'Dejar 10-5 a un compañero', 20],
+  ['1090RP', 'Reparación de daño pendiente', 20],
+  ['1090MUA', 'Mal uso de aplicación — rango $20 a $30, cargar a mano', 0],
+  ['1090NSN', 'Dejar cliente 10-5 por no cargar silla para niños o boosters', 20],
+  ['1090ED', 'Error de dirección (salir a otro 10-20 o a la dirección del destino anterior)', 10],
   ['1090ACT', 'Asistencia con TaxiCaller (fuera de la oficina)', 5],
   ['1090ADA', 'Asistencia con descarga de aplicaciones', 10],
 ];
@@ -58,12 +58,12 @@ function serializar(row) {
 }
 
 async function asegurarDeudaRecuperada() {
-  const hay = await db.prepare(`SELECT id FROM catalogo_fees WHERE codigo = '1060DR'`).get();
+  const hay = await db.prepare(`SELECT id FROM catalogo_fees WHERE codigo = '1090DR'`).get();
   if (hay) return;
   const orden = ((await db.prepare('SELECT MAX(orden) as n FROM catalogo_fees').get()).n ?? 0) + 1;
   await db
     .prepare('INSERT INTO catalogo_fees (id, codigo, etiqueta, monto, orden) VALUES (?, ?, ?, ?, ?)')
-    .run(generarId('fee'), '1060DR', 'Deuda Recuperada (monto variable)', 0, orden);
+    .run(generarId('fee'), '1090DR', 'Deuda Recuperada (monto variable)', 0, orden);
 }
 
 catalogoFeesRouter.get('/', async (req, res) => {

@@ -8,7 +8,7 @@ export const CONFIG_DEFECTO = {
   corte: '2026-10-20', // fecha del Balance Sheet / P&L del sistema anterior cargados como saldos de arranque
   zelle: '10201', // Bank of America 9859*: en el historial del sistema anterior los pagos por Zelle de 2025-2026 entran ahí
   kotapay: '14500', // Undeposited Funds: en el historial, los pagos con tarjeta/Kotapay entran ahí (14510 no tiene movimientos)
-  efectivo: '10000', // Cash on Hand
+  efectivo: '14500', // el efectivo también entra a Undeposited Funds; la administración lo deposita en el banco a mano
   banco: '10200', // cuenta por defecto cuando un gasto/pago no indica de dónde salió
   ar: '11000',
   ap: '20000',
@@ -55,20 +55,20 @@ export async function guardarConfig(parcial, conn = db) {
 }
 
 // Cuenta de ingreso de cada código de fee, según el estudio contable. Si el fee tiene una cuenta elegida a mano
-// en "A qué cuenta contable va cada cosa", esa manda. 1060DR (deuda recuperada) NO es ingreso: no pasa por acá.
+// en "A qué cuenta contable va cada cosa", esa manda. 1090DR (deuda recuperada) NO es ingreso: no pasa por acá.
 const INGRESO_POR_CODIGO = {
   '1090PB': '40000', // cuota semanal -> Taxis Income
-  '1060RA': '40001', // reactivación -> Subscription Income
-  '1060RI': '40001', // reinscripción -> Subscription Income
+  '1090RA': '40001', // reactivación -> Subscription Income
+  '1090RI': '40001', // reinscripción -> Subscription Income
   '1090ACT': '40003', // asistencia -> Assistance Income
   '1090ADA': '40003',
-  '1060RC': '42000', // reclamos -> Claims
+  '1090RC': '42000', // reclamos -> Claims
 };
 export function cuentaIngresoDeFee(codigo, cuentaElegida, cfg = CONFIG_DEFECTO) {
   if (cuentaElegida) return cuentaElegida;
   if (!codigo) return cfg.ingresoDefault;
   if (INGRESO_POR_CODIGO[codigo]) return INGRESO_POR_CODIGO[codigo];
-  if (String(codigo).startsWith('1060')) return '40002'; // multas y penalidades -> Fines Income
+  if (String(codigo).startsWith('1090')) return '40002'; // multas y penalidades -> Fines Income
   return '41001'; // cualquier otro ingreso (venta de productos) -> Other Sales
 }
 

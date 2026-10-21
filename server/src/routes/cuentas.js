@@ -6,7 +6,7 @@ import { requiereAdmin } from '../auth.js';
 export const cuentasRouter = Router();
 
 function serializar(row) {
-  return { id: row.id, nombre: row.nombre, tipo: row.tipo, saldoInicial: aDolares(row.saldo_inicial) };
+  return { id: row.id, nombre: row.nombre, tipo: row.tipo, saldoInicial: aDolares(row.saldo_inicial), cuentaContable: row.cuenta_contable ?? undefined };
 }
 
 function serializarTransferencia(row) {

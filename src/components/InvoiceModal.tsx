@@ -3,7 +3,8 @@ import { useDataStore } from '../data/DataContext';
 import { InvoiceDocument } from './InvoiceDocument';
 import { PaymentModal } from './PaymentModal';
 import { DocumentAuditHistory } from './DocumentAuditHistory';
-import { saldoPendiente } from '../lib/aging';
+import { ClienteSelect } from './ClienteSelect';
+import { saldoPendiente, formatoMoneda } from '../lib/aging';
 
 export function InvoiceModal({
   facturaId,
@@ -12,7 +13,7 @@ export function InvoiceModal({
   facturaId: string;
   onClose: () => void;
 }) {
-  const { facturas, getCliente, descargarFacturaPdf, enviarFacturaPorMail, editarFactura, eliminarFactura, usuarioActual } = useDataStore();
+  const { facturas, getCliente, descargarFacturaPdf, enviarFacturaPorMail, editarFactura, eliminarFactura, asignarSaldoAFavor, clientes, notasCredito, usuarioActual } = useDataStore();
   const [pagoAbierto, setPagoAbierto] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const [enviandoMail, setEnviandoMail] = useState(false);
@@ -23,6 +24,12 @@ export function InvoiceModal({
   const [montoEdit, setMontoEdit] = useState('');
   const [vencimientoEdit, setVencimientoEdit] = useState('');
   const [errorEdicion, setErrorEdicion] = useState<string | null>(null);
+  const [fechaEdit, setFechaEdit] = useState('');
+  const [codigoEdit, setCodigoEdit] = useState('');
+  const [clienteEdit, setClienteEdit] = useState('');
+  const [filasSaf, setFilasSaf] = useState<{ clienteId: string; monto: string }[]>([{ clienteId: '', monto: '' }]);
+  const [errorSaf, setErrorSaf] = useState<string | null>(null);
+  const [asignando, setAsignando] = useState(false);
 
   // Se busca la factura viva en cada render (no una copia fija tomada al
   // abrir el modal), para que si se paga desde acá adentro, se vea reflejado
@@ -40,6 +47,9 @@ export function InvoiceModal({
     setConceptoEdit(factura.concepto);
     setMontoEdit(String(factura.monto));
     setVencimientoEdit(factura.fechaVencimiento);
+    setFechaEdit(factura.fecha);
+    setCodigoEdit(factura.codigo ?? '');
+    setClienteEdit(factura.clienteId);
     setErrorEdicion(null);
     setEditando(true);
   }
@@ -48,8 +58,19 @@ export function InvoiceModal({
     const montoNumero = Number(montoEdit);
     if (!conceptoEdit.trim()) return setErrorEdicion('El motivo no puede quedar vacío.');
     if (!montoEdit || Number.isNaN(montoNumero) || montoNumero <= 0) return setErrorEdicion('El monto tiene que ser mayor a 0.');
-    await editarFactura(facturaId, { concepto: conceptoEdit.trim(), monto: montoNumero, fechaVencimiento: vencimientoEdit });
-    setEditando(false);
+    try {
+      await editarFactura(facturaId, {
+        concepto: conceptoEdit.trim(),
+        monto: montoNumero,
+        fechaVencimiento: vencimientoEdit,
+        fecha: fechaEdit,
+        codigo: codigoEdit.trim(),
+        clienteId: clienteEdit,
+      });
+      setEditando(false);
+    } catch (e) {
+      setErrorEdicion(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
   }
 
   async function handleEliminar() {
@@ -136,6 +157,20 @@ export function InvoiceModal({
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="th-label mb-1">Fecha de la factura</div>
+                <input type="date" value={fechaEdit} onChange={(e) => setFechaEdit(e.target.value)} className="w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent" />
+              </div>
+              <div>
+                <div className="th-label mb-1">Código (ej. 1090PB)</div>
+                <input value={codigoEdit} onChange={(e) => setCodigoEdit(e.target.value)} className="w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm num focus:outline-none focus:border-accent" />
+              </div>
+            </div>
+            <div>
+              <div className="th-label mb-1">Unidad / cliente (se puede pasar a otra si no tiene pagos)</div>
+              <ClienteSelect clientes={clientes} value={clienteEdit} onChange={setClienteEdit} />
+            </div>
             {errorEdicion && <div className="text-danger-dark text-[12.5px]">{errorEdicion}</div>}
             <div className="flex gap-2">
               <button className="btn-accent" onClick={handleGuardarEdicion}>Guardar cambios</button>
@@ -159,6 +194,55 @@ export function InvoiceModal({
             </span>
           </div>
         )}
+
+        {factura.codigo === '1090CI' && esAdmin && (() => {
+          const hechas = notasCredito.filter((n) => n.origenFacturaId === factura.id);
+          const asignado = hechas.reduce((a, n) => a + n.monto, 0);
+          const restante = Math.round((factura.monto - asignado) * 100) / 100;
+          const pagada = factura.montoPagado >= factura.monto;
+          const sumaFilas = filasSaf.reduce((a, f) => a + (Number(f.monto) || 0), 0);
+          async function asignar() {
+            setErrorSaf(null);
+            const asig = filasSaf.filter((f) => f.clienteId && Number(f.monto) > 0).map((f) => ({ clienteId: f.clienteId, monto: Number(f.monto) }));
+            if (asig.length === 0) return setErrorSaf('Elegí al menos una unidad y un monto.');
+            setAsignando(true);
+            try {
+              await asignarSaldoAFavor(factura!.id, asig);
+              setFilasSaf([{ clienteId: '', monto: '' }]);
+            } catch (e) {
+              setErrorSaf(e instanceof Error ? e.message : 'No se pudo asignar.');
+            } finally {
+              setAsignando(false);
+            }
+          }
+          return (
+            <div className="px-4 py-3 border-t border-line no-print bg-success-bg">
+              <div className="font-semibold text-[13px] mb-0.5">Saldo a favor por cobro indebido (1090SAF)</div>
+              <div className="text-ink-soft text-[12px] mb-2">
+                Asignado {formatoMoneda(asignado)} de {formatoMoneda(factura.monto)} · queda {formatoMoneda(restante)}.
+                {!pagada && ' Se habilita cuando esta factura esté pagada.'}
+              </div>
+              {hechas.map((n) => (
+                <div key={n.id} className="text-[12px] text-ink-soft">NC #{n.numero} · {getCliente(n.clienteId)?.codigo ?? '?'} · {formatoMoneda(n.monto)}</div>
+              ))}
+              {pagada && restante > 0 && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {filasSaf.map((f, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <div className="flex-1"><ClienteSelect clientes={clientes.filter((c) => c.id !== factura.clienteId)} value={f.clienteId} onChange={(id) => setFilasSaf((p) => p.map((x, j) => (j === i ? { ...x, clienteId: id } : x)))} placeholder="Unidad que descontó al cliente…" /></div>
+                      <input type="number" aria-label="Monto a asignar" placeholder="0.00" value={f.monto} onChange={(e) => setFilasSaf((p) => p.map((x, j) => (j === i ? { ...x, monto: e.target.value } : x)))} className="w-24 border border-line rounded-[5px] bg-surface px-2 py-1.5 text-sm num" />
+                    </div>
+                  ))}
+                  <div className="flex gap-3 items-center flex-wrap">
+                    <button className="text-[12px] text-accent hover:underline" onClick={() => setFilasSaf((p) => [...p, { clienteId: '', monto: '' }])}>+ Agregar otra unidad</button>
+                    <button className="btn-accent" onClick={asignar} disabled={asignando || sumaFilas <= 0}>Crear notas de crédito 1090SAF · {formatoMoneda(sumaFilas)}</button>
+                  </div>
+                  {errorSaf && <div className="text-danger-dark text-[12.5px]">{errorSaf}</div>}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="px-4 py-3 border-t border-line no-print">
           <DocumentAuditHistory entidad="Factura" entidadId={factura.id} />

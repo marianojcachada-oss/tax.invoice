@@ -329,11 +329,11 @@ test('el fee de reactivación es $10 si la última factura fue hace 10 días, y 
   }
 
   const dentro = await probarReactivacion('DREAC10', 10);
-  assert.equal(dentro.feeAutomatico.codigo, '1060RA');
+  assert.equal(dentro.feeAutomatico.codigo, '1090RA');
   assert.equal(dentro.feeAutomatico.monto, 10);
 
   const fuera = await probarReactivacion('DREAC40', 40);
-  assert.equal(fuera.feeAutomatico.codigo, '1060RI');
+  assert.equal(fuera.feeAutomatico.codigo, '1090RI');
   assert.equal(fuera.feeAutomatico.monto, 20);
 });
 
@@ -485,17 +485,17 @@ test('reembolso parcial sobre un pago: muestra la factura, no deja devolver más
   assert.equal(r3.status, 201);
 });
 
-test('factura 1060DR paga genera un saldo a favor 1060SAF en la unidad beneficiaria (una sola vez)', async () => {
+test('factura 1090DR paga genera un saldo a favor 1090SAF en la unidad beneficiaria (una sola vez)', async () => {
   const token = await login('user-admin', '1234');
   const headers = headersDe(token);
   const clientes = await fetch(`${baseUrl}/clientes`, { headers }).then((r) => r.json());
   const otro = clientes.find((c) => c.id !== 'cli-1');
 
   // sin beneficiario: rechaza
-  const mala = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Deuda recuperada', monto: 300, codigo: '1060DR' }) });
+  const mala = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Deuda recuperada', monto: 300, codigo: '1090DR' }) });
   assert.equal(mala.status, 400);
 
-  const dr = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Deuda recuperada', monto: 300, codigo: '1060DR', beneficiarioId: otro.id }) }).then((r) => r.json());
+  const dr = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Deuda recuperada', monto: 300, codigo: '1090DR', beneficiarioId: otro.id }) }).then((r) => r.json());
   assert.equal(dr.beneficiarioId, otro.id);
 
   // pago parcial: todavía no hay saldo a favor
@@ -510,7 +510,7 @@ test('factura 1060DR paga genera un saldo a favor 1060SAF en la unidad beneficia
   assert.equal(saf.length, 1);
   assert.equal(saf[0].clienteId, otro.id);
   assert.equal(saf[0].monto, 300);
-  assert.match(saf[0].motivo, /1060SAF/);
+  assert.match(saf[0].motivo, /1090SAF/);
 });
 
 test('parser de Kotapay saca monto, titular, vehículo, tarjeta y transacción', () => {
@@ -627,4 +627,81 @@ test('cierre contable: admin bloquea el período; edición directa 423, operador
 
   await fetch(`${baseUrl}/solicitudes/cierre/actual`, { method: 'PUT', headers: admin, body: JSON.stringify({ cierreHasta: null }) });
   assert.equal((await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers: admin, body: JSON.stringify({ concepto: 'x' }) })).status, 200);
+});
+
+// ─── Cobros indebidos, traspasos, baja automática y Undeposited ──────
+async function crearYPagar(headers, clienteId, concepto, monto, codigo, metodo = 'zelle') {
+  const f = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId, concepto, monto, codigo }) }).then((r) => r.json());
+  const p = await fetch(`${baseUrl}/pagos`, { method: 'POST', headers, body: JSON.stringify({ clienteId, metodo, aplicaciones: [{ facturaId: f.id, monto }] }) }).then((r) => r.json());
+  return { f, p };
+}
+
+test('1090CI pagada: se reparte en varios saldos a favor (1090SAF) sin pasarse del total', async () => {
+  const headers = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  const { f } = await crearYPagar(headers, 'cli-1', 'Cobro indebido', 20, '1090CI');
+  const lineas = (a) => fetch(`${baseUrl}/facturas/${f.id}/asignar-saf`, { method: 'POST', headers: a, body: JSON.stringify({ asignaciones: [{ clienteId: 'cli-2', monto: 6 }] }) });
+  assert.equal((await lineas(op)).status, 403);
+  assert.equal((await lineas(headers)).status, 201);
+  assert.equal((await lineas(headers)).status, 201);
+  const r3 = await fetch(`${baseUrl}/facturas/${f.id}/asignar-saf`, { method: 'POST', headers, body: JSON.stringify({ asignaciones: [{ clienteId: 'cli-2', monto: 9 }] }) });
+  assert.equal(r3.status, 409); // quedan $8
+  const ok = await fetch(`${baseUrl}/facturas/${f.id}/asignar-saf`, { method: 'POST', headers, body: JSON.stringify({ asignaciones: [{ clienteId: 'cli-2', monto: 8 }] }) }).then((r) => r.json());
+  assert.equal(ok.restante, 0);
+  const nc = await fetch(`${baseUrl}/notas-credito`, { headers }).then((r) => r.json());
+  assert.equal(nc.filter((n) => n.origenFacturaId === f.id).length, 3);
+  assert.match(nc.find((n) => n.origenFacturaId === f.id).motivo, /1090SAF/);
+});
+
+test('una nota de crédito se puede pasar a otra unidad y el concepto lo deja asentado; una factura sin pagos también', async () => {
+  const headers = headersDe(await login('user-admin', '1234'));
+  const nc = await fetch(`${baseUrl}/notas-credito`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', fecha: '2026-10-01', monto: 25, motivo: '1090SAF · prueba' }) }).then((r) => r.json());
+  const mov = await fetch(`${baseUrl}/notas-credito/${nc.id}`, { method: 'PATCH', headers, body: JSON.stringify({ clienteId: 'cli-2', fecha: '2026-10-02' }) }).then((r) => r.json());
+  assert.equal(mov.clienteId, 'cli-2');
+  assert.equal(mov.fecha, '2026-10-02');
+  assert.match(mov.motivo, /pasada de D0001 a D0002/);
+
+  const f = await fetch(`${baseUrl}/facturas`, { method: 'POST', headers, body: JSON.stringify({ clienteId: 'cli-1', concepto: 'Mover', monto: 30 }) }).then((r) => r.json());
+  const mf = await fetch(`${baseUrl}/facturas/${f.id}`, { method: 'PATCH', headers, body: JSON.stringify({ clienteId: 'cli-2', fecha: '2026-09-30', codigo: '1090W' }) }).then((r) => r.json());
+  assert.equal(mf.clienteId, 'cli-2');
+  assert.equal(mf.codigo, '1090W');
+  const { f: pagada } = await crearYPagar(headers, 'cli-1', 'Pagada', 10);
+  const bad = await fetch(`${baseUrl}/facturas/${pagada.id}`, { method: 'PATCH', headers, body: JSON.stringify({ clienteId: 'cli-2' }) });
+  assert.equal(bad.status, 409);
+});
+
+test('baja automática: pasa a inactivo a quien no pagó la cuota semanal vencida; solo admin', async () => {
+  const headers = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  await db.prepare(`INSERT INTO clientes (id, codigo, numero, nombre, telefonos, licencia_info, cuota_semanal, fecha_alta, estado) VALUES ('cli-baja', 'D0777', '777', 'Moroso', '', '', 14500, '2025-01-01', 'activo')`).run();
+  const ayer = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+  await db.prepare(`INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, codigo) VALUES ('fac-baja', 987654, 'cli-baja', 1, ?, ?, '1090PB Semana 1', 14500, 0, 'pendiente', '1090PB')`).run(ayer, ayer);
+  assert.equal((await fetch(`${baseUrl}/baja-automatica/ejecutar`, { method: 'POST', headers: op })).status, 403);
+  const r = await fetch(`${baseUrl}/baja-automatica/ejecutar`, { method: 'POST', headers }).then((x) => x.json());
+  assert.ok(r.clientes.some((c) => c.codigo === 'D0777'));
+  assert.equal((await db.prepare("SELECT estado FROM clientes WHERE id = 'cli-baja'").get()).estado, 'inactivo');
+  const cfg = await fetch(`${baseUrl}/baja-automatica`, { method: 'PUT', headers, body: JSON.stringify({ activa: true, dia: 'mie', hora: '00:00' }) }).then((x) => x.json());
+  assert.equal(cfg.activa, true);
+});
+
+test('Undeposited: Kotapay y efectivo esperan; la administración los deposita en 10200/10201 y se puede deshacer', async () => {
+  const headers = headersDe(await login('user-admin', '1234'));
+  const op = headersDe(await login('user-op', '5678'));
+  const { p: pk } = await crearYPagar(headers, 'cli-1', 'Kota', 40, undefined, 'kotapay');
+  const { p: pz } = await crearYPagar(headers, 'cli-1', 'Zelle', 15, undefined, 'zelle');
+  assert.equal((await fetch(`${baseUrl}/undeposited`, { headers: op })).status, 403);
+  const antes = await fetch(`${baseUrl}/undeposited`, { headers }).then((r) => r.json());
+  assert.ok(antes.pendientes.some((x) => x.pagoId === pk.id));
+  assert.ok(!antes.pendientes.some((x) => x.pagoId === pz.id)); // Zelle entra directo al banco
+  const dep = await fetch(`${baseUrl}/undeposited/depositar`, { method: 'POST', headers, body: JSON.stringify({ pagoIds: [pk.id], destino: '10200', fecha: '2026-10-21' }) });
+  assert.equal(dep.status, 201);
+  const despues = await fetch(`${baseUrl}/undeposited`, { headers }).then((r) => r.json());
+  assert.ok(!despues.pendientes.some((x) => x.pagoId === pk.id));
+  assert.equal(despues.depositos[0].destino, '10200');
+  assert.equal((await fetch(`${baseUrl}/undeposited/depositar`, { method: 'POST', headers, body: JSON.stringify({ pagoIds: [pk.id], destino: '10200', fecha: '2026-10-21' }) })).status, 409);
+  const lineas = await db.prepare('SELECT cuenta, debe, haber FROM asiento_lineas l JOIN asientos a ON a.id = l.asiento_id WHERE a.id = (SELECT asiento_id FROM depositos_undeposited LIMIT 1)').all();
+  assert.deepEqual(lineas.map((l) => [l.cuenta, l.debe, l.haber]).sort(), [['10200', 4000, 0], ['14500', 0, 4000]].sort());
+  assert.equal((await fetch(`${baseUrl}/undeposited/depositos/${despues.depositos[0].id}`, { method: 'DELETE', headers })).status, 200);
+  const vuelve = await fetch(`${baseUrl}/undeposited`, { headers }).then((r) => r.json());
+  assert.ok(vuelve.pendientes.some((x) => x.pagoId === pk.id));
 });

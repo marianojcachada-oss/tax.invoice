@@ -379,6 +379,40 @@ CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes(estado, creada)
 -- (con la clave "anon") salvo que tengan Row Level Security activado. El servidor
 -- se conecta como dueño de la base y no se ve afectado; con RLS activo y SIN
 -- políticas, la API pública no puede leer ni escribir nada.
+-- Los códigos 1060xxx pasaron a 1090xxx (decisión del estudio contable). Idempotente.
+UPDATE catalogo_fees c SET codigo = '1090' || substr(codigo, 5)
+  WHERE codigo LIKE '1060%' AND NOT EXISTS (SELECT 1 FROM catalogo_fees x WHERE x.codigo = '1090' || substr(c.codigo, 5));
+UPDATE facturas SET codigo = '1090' || substr(codigo, 5) WHERE codigo LIKE '1060%';
+UPDATE notas_credito SET motivo = '1090' || substr(motivo, 5) WHERE motivo LIKE '1060%';
+
+-- Baja automática de clientes que no pagaron la cuota semanal (apagada por defecto).
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS baja_auto_activa BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS baja_auto_dia TEXT NOT NULL DEFAULT 'mie';
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS baja_auto_hora TEXT NOT NULL DEFAULT '00:00';
+ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS baja_auto_ultima TEXT;
+
+-- Cuentas de cobro: Zelle entra por BofA 9859; Kotapay y efectivo van a Undeposited Funds.
+INSERT INTO cuentas (id, nombre, tipo, saldo_inicial, cuenta_contable) VALUES
+  ('cta-10201', 'Bank of America 9859 (10201)', 'zelle', 0, '10201'),
+  ('cta-10200', 'Bank of America 1611 (10200)', 'banco', 0, '10200'),
+  ('cta-14500', 'Undeposited Funds (14500) — Kotapay y efectivo', 'efectivo', 0, '14500')
+ON CONFLICT (id) DO NOTHING;
+
+-- Depósitos de Undeposited Funds hacia el banco (los define la administración).
+CREATE TABLE IF NOT EXISTS depositos_undeposited (
+  id TEXT PRIMARY KEY,
+  fecha TEXT NOT NULL,
+  destino TEXT NOT NULL,
+  monto INTEGER NOT NULL,
+  nota TEXT,
+  asiento_id TEXT REFERENCES asientos(id) ON DELETE SET NULL,
+  creado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS deposito_pagos (
+  deposito_id TEXT NOT NULL REFERENCES depositos_undeposited(id) ON DELETE CASCADE,
+  pago_id TEXT PRIMARY KEY REFERENCES pagos(id) ON DELETE CASCADE
+);
+
 DO $$
 DECLARE t record;
 BEGIN

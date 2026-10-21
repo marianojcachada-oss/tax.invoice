@@ -198,38 +198,22 @@ clientesRouter.patch('/:id', async (req, res) => {
     await registrarAuditoria({ usuario: req.usuario.nombre, accion: 'Editó cliente', entidad: 'Cliente', entidadId: req.params.id, resumen: `Se actualizó a ${actual.nombre}`, cambios });
   }
 
-  // Reactivación automática: si pasa de inactivo a activo, se factura
-  // solo Reactivación ($10, 1060RA) o Reinscripción ($20, 1060RI) según
-  // hayan pasado o no 28 días desde la última factura, contados hasta
-  // las 5 PM hora Atlanta — regla que dio el usuario.
+  // Reactivación: ya no se factura sola. Se devuelve una sugerencia (Reactivación $10 dentro de los 28 días
+  // desde la última factura hasta las 5 PM Atlanta, Reinscripción $20 si no) y el front abre un pop-up
+  // para que la administración cree la cuota semanal y la reactivación/reinscripción.
   let feeAutomatico = null;
   const seReactiva = b.estado === 'activo' && actual.estado === 'inactivo';
   if (seReactiva) {
     const ultimaFactura = await db.prepare('SELECT fecha FROM facturas WHERE cliente_id = ? ORDER BY fecha DESC LIMIT 1').get(req.params.id);
-    if (ultimaFactura) {
-      const dentroDePlazo = fechaHoraAtlantaAhora() <= limiteReactivacion(ultimaFactura.fecha);
-      const codigo = dentroDePlazo ? '1060RA' : '1060RI';
-      const itemCatalogo = await db.prepare('SELECT * FROM catalogo_fees WHERE codigo = ?').get(codigo);
-      const etiqueta = itemCatalogo?.etiqueta ?? (dentroDePlazo ? 'Reactivación' : 'Reinscripción');
-      const monto = itemCatalogo?.monto ?? aCentavos(dentroDePlazo ? 10 : 20);
-      const numeroFactura = ((await db.prepare('SELECT MAX(numero) as n FROM facturas').get()).n ?? 40000) + 1;
-      const hoy = new Date().toISOString().slice(0, 10);
-      const facturaId = generarId('fac-reactivacion');
-      await db
-        .prepare(
-          `INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, codigo, creado_por)
-           VALUES (?, ?, ?, 0, ?, ?, ?, ?, 0, 'pendiente', ?, ?)`
-        )
-        .run(facturaId, numeroFactura, req.params.id, hoy, hoy, etiqueta, monto, codigo, req.usuario.nombre);
-      feeAutomatico = { codigo, etiqueta, monto: aDolares(monto), facturaId };
-      await registrarAuditoria({
-        usuario: req.usuario.nombre,
-        accion: 'Generó fee automático de reactivación',
-        entidad: 'Factura',
-        entidadId: facturaId,
-        resumen: `${actual.nombre} se reactivó ${dentroDePlazo ? 'dentro' : 'después'} de los 28 días desde su última factura (${ultimaFactura.fecha}) — se facturó ${etiqueta} ($${aDolares(monto)}, ${codigo}) automáticamente.`,
-      });
-    }
+    const dentroDePlazo = ultimaFactura ? fechaHoraAtlantaAhora() <= limiteReactivacion(ultimaFactura.fecha) : false;
+    const codigo = dentroDePlazo ? '1090RA' : '1090RI';
+    const itemCatalogo = await db.prepare('SELECT * FROM catalogo_fees WHERE codigo = ?').get(codigo);
+    feeAutomatico = {
+      codigo,
+      etiqueta: itemCatalogo?.etiqueta ?? (dentroDePlazo ? 'Reactivación' : 'Reinscripción'),
+      monto: aDolares(itemCatalogo?.monto ?? aCentavos(dentroDePlazo ? 10 : 20)),
+      ultimaFactura: ultimaFactura?.fecha ?? null,
+    };
   }
 
   const actualizado = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(req.params.id);

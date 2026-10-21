@@ -94,9 +94,22 @@ export async function editarNotaCore(id, b, autor) {
     throw new ErrorHttp(400, `No se puede bajar el monto por debajo de lo que ya se aplicó ($${aDolares(actual.monto_aplicado)}).`);
   }
   const cambios = cambiosDeNota(actual, b);
+  let motivoFinal = b.motivo ?? actual.motivo;
+  let clienteNuevo = actual.cliente_id;
+  if (b.clienteId !== undefined && b.clienteId !== actual.cliente_id) {
+    if (actual.monto_aplicado > 0) throw new ErrorHttp(409, `La nota #${actual.numero} ya aplicó $${aDolares(actual.monto_aplicado)} a facturas: no se puede pasar a otra unidad.`);
+    const [o, d] = await Promise.all([db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(actual.cliente_id), db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(b.clienteId)]);
+    if (!d) throw new ErrorHttp(404, 'La unidad de destino no existe.');
+    clienteNuevo = b.clienteId;
+    // el concepto deja constancia del traspaso (si no se escribió uno nuevo a mano)
+    if (b.motivo === undefined || b.motivo === actual.motivo) motivoFinal = `${actual.motivo} · pasada de ${o?.codigo ?? '?'} a ${d.codigo}`;
+    const c = cambios.find((x) => x.campo === 'Cliente');
+    if (c) { c.anterior = o ? `${o.codigo} ${o.nombre}` : actual.cliente_id; c.nuevo = `${d.codigo} ${d.nombre}`; }
+    if (motivoFinal !== actual.motivo && !cambios.some((x) => x.campo === 'Motivo')) cambios.push({ campo: 'Motivo', anterior: actual.motivo, nuevo: motivoFinal });
+  }
   await db
-    .prepare('UPDATE notas_credito SET motivo = ?, monto = ?, aplicada = ? WHERE id = ?')
-    .run(b.motivo ?? actual.motivo, nuevoMonto, nuevoMonto <= actual.monto_aplicado, id);
+    .prepare('UPDATE notas_credito SET motivo = ?, monto = ?, aplicada = ?, fecha = ?, cliente_id = ? WHERE id = ?')
+    .run(motivoFinal, nuevoMonto, nuevoMonto <= actual.monto_aplicado, b.fecha ?? actual.fecha, clienteNuevo, id);
   if (cambios.length > 0) {
     await registrarAuditoria({ usuario: autor, accion: 'Editó nota de crédito', entidad: 'NotaCredito', entidadId: id, resumen: `Se corrigió la nota #${actual.numero}`, cambios });
   }
@@ -107,6 +120,8 @@ function cambiosDeNota(actual, b) {
   const cambios = [];
   if (b.motivo !== undefined && b.motivo !== actual.motivo) cambios.push({ campo: 'Motivo', anterior: actual.motivo, nuevo: b.motivo });
   if (b.monto !== undefined && aCentavos(b.monto) !== actual.monto) cambios.push({ campo: 'Monto', anterior: String(aDolares(actual.monto)), nuevo: String(b.monto) });
+  if (b.fecha !== undefined && b.fecha !== actual.fecha) cambios.push({ campo: 'Fecha', anterior: actual.fecha, nuevo: b.fecha });
+  if (b.clienteId !== undefined && b.clienteId !== actual.cliente_id) cambios.push({ campo: 'Cliente', anterior: actual.cliente_id, nuevo: b.clienteId });
   return cambios;
 }
 
@@ -119,6 +134,11 @@ notasCreditoRouter.patch('/:id', async (req, res, next) => {
     const b = req.body ?? {};
     const detalle = cambiosDeNota(actual, b);
     if (detalle.length === 0) return res.json(await serializar(actual));
+    const cDet = detalle.find((x) => x.campo === 'Cliente');
+    if (cDet) {
+      const [o, d] = await Promise.all([db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(actual.cliente_id), db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(b.clienteId)]);
+      if (o && d) { cDet.anterior = `${o.codigo} ${o.nombre}`; cDet.nuevo = `${d.codigo} ${d.nombre}`; }
+    }
     await ejecutarOSolicitar(req, res, {
       tipo: 'editar_nota_credito',
       entidad: 'NotaCredito',

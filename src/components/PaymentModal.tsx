@@ -39,7 +39,7 @@ export function PaymentModal({ clienteId: clienteIdFijo, onClose }: Props) {
   const [aplicaciones, setAplicaciones] = useState<Record<string, string>>({});
   const [metodo, setMetodo] = useState<MetodoPago>('zelle');
   const [referencia, setReferencia] = useState('');
-  const [cuentaId, setCuentaId] = useState('');
+  const [cuentaId, setCuentaId] = useState(() => cuentas.find((c) => c.cuentaContable === '10201')?.id ?? '');
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const enviandoRef = useRef(false);
@@ -61,12 +61,12 @@ export function PaymentModal({ clienteId: clienteIdFijo, onClose }: Props) {
 
   function elegirMetodo(m: MetodoPago) {
     setMetodo(m);
+    // Zelle entra directo a BofA 9859 (10201); Kotapay y efectivo quedan en Undeposited Funds (14500)
+    // hasta que la administración los deposita en un banco.
+    const contable = m === 'zelle' ? '10201' : '14500';
     const sugerida =
-      m === 'zelle'
-        ? cuentas.find((c) => c.tipo === 'zelle')
-        : m === 'efectivo'
-          ? cuentas.find((c) => c.tipo === 'efectivo')
-          : cuentas.find((c) => c.tipo === 'banco');
+      cuentas.find((c) => c.cuentaContable === contable) ??
+      (m === 'zelle' ? cuentas.find((c) => c.tipo === 'zelle') : m === 'efectivo' ? cuentas.find((c) => c.tipo === 'efectivo') : cuentas.find((c) => c.tipo === 'banco'));
     if (sugerida) setCuentaId(sugerida.id);
   }
 

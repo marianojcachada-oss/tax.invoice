@@ -83,10 +83,10 @@ function FacturasTab() {
   const [filtro, setFiltro] = useState<FiltroFactura>('todas');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
-  const [ordenCampo, setOrdenCampo] = useState<CampoOrdenFactura>('fecha');
+  const [ordenCampo, setOrdenCampo] = useState<CampoOrdenFactura>('numero');
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc');
   const [pagina, setPagina] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [modalClienteId, setModalClienteId] = useState<string | null>(null);
   const [crearFacturaAbierto, setCrearFacturaAbierto] = useState(false);
   const [generarSemanalAbierto, setGenerarSemanalAbierto] = useState(false);
@@ -528,10 +528,44 @@ function NotasCreditoTab() {
   const [abierto, setAbierto] = useState(false);
   const [notaAAplicar, setNotaAAplicar] = useState<NotaCredito | null>(null);
   const [notaAEditar, setNotaAEditar] = useState<NotaCredito | null>(null);
+  const [fDia, setFDia] = useState('');
+  const [fCliente, setFCliente] = useState('');
+  const [fEstado, setFEstado] = useState<'todas' | 'aplicadas' | 'sin'>('todas');
+  const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const filtradas = useMemo(() => {
+    const q = fCliente.trim().toLowerCase();
+    return [...notasCredito]
+      .filter((n) => {
+        if (fDia && n.fecha !== fDia) return false;
+        if (fEstado === 'aplicadas' && !n.aplicada) return false;
+        if (fEstado === 'sin' && n.aplicada) return false;
+        if (q) {
+          const c = clientePorId.get(n.clienteId);
+          if (!c || !`${c.codigo} ${c.nombre}`.toLowerCase().includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.fecha === b.fecha ? b.numero - a.numero : a.fecha < b.fecha ? 1 : -1));
+  }, [notasCredito, fDia, fCliente, fEstado, clientePorId]);
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / pageSize));
+  const visibles = filtradas.slice((pagina - 1) * pageSize, pagina * pageSize);
+  const inputF = 'border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-[13px] focus:outline-none focus:border-accent';
 
   return (
     <div>
-      <div className="flex justify-end mb-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="date" aria-label="Filtrar por día" value={fDia} onChange={(e) => { setFDia(e.target.value); setPagina(1); }} className={inputF} />
+          <input aria-label="Buscar cliente" placeholder="Buscar cliente o unidad…" value={fCliente} onChange={(e) => { setFCliente(e.target.value); setPagina(1); }} className={`${inputF} w-52`} />
+          {([['todas', 'Todas'], ['aplicadas', 'Aplicadas'], ['sin', 'Sin aplicar']] as const).map(([v, t]) => (
+            <button key={v} aria-pressed={fEstado === v} onClick={() => { setFEstado(v); setPagina(1); }} className={fEstado === v ? 'chip-accent' : 'chip'}>{t}</button>
+          ))}
+          {(fDia || fCliente || fEstado !== 'todas') && (
+            <button className="text-[12px] text-accent hover:underline" onClick={() => { setFDia(''); setFCliente(''); setFEstado('todas'); setPagina(1); }}>Limpiar</button>
+          )}
+        </div>
         <button className="btn-accent" onClick={() => setAbierto(true)}>
           Nueva nota de crédito
         </button>
@@ -545,7 +579,7 @@ function NotasCreditoTab() {
                 <span key={h} className="th-label">{h}</span>
               ))}
             </div>
-            {notasCredito.map((n) => {
+            {visibles.map((n) => {
               const cliente = clientePorId.get(n.clienteId);
               const disponible = n.monto - n.montoAplicado;
               return (
@@ -574,11 +608,12 @@ function NotasCreditoTab() {
                 </div>
               );
             })}
-            {notasCredito.length === 0 && (
-              <div className="px-5 py-8 text-ink-soft text-sm text-center">No hay notas de crédito registradas.</div>
+            {filtradas.length === 0 && (
+              <div className="px-5 py-8 text-ink-soft text-sm text-center">{notasCredito.length === 0 ? 'No hay notas de crédito registradas.' : 'Ninguna nota coincide con los filtros.'}</div>
             )}
           </div>
         </div>
+        <Pagination pagina={pagina} totalPaginas={totalPaginas} totalItems={filtradas.length} pageSize={pageSize} onPageChange={setPagina} onPageSizeChange={(n) => { setPageSize(n); setPagina(1); }} etiqueta="notas de crédito" />
       </div>
 
       {abierto && <CreateCreditMemoModal onClose={() => setAbierto(false)} />}
@@ -600,6 +635,15 @@ function ReembolsosTab() {
   const [metodo, setMetodo] = useState<MetodoPago>('zelle');
   const [motivo, setMotivo] = useState('');
   const enviandoRef = useRef(false);
+  const [fCliente, setFCliente] = useState('');
+  const reembolsosFiltrados = useMemo(() => {
+    const q = fCliente.trim().toLowerCase();
+    if (!q) return reembolsos;
+    return reembolsos.filter((r) => {
+      const c = clientePorId.get(r.clienteId);
+      return !!c && `${c.codigo} ${c.nombre}`.toLowerCase().includes(q);
+    });
+  }, [reembolsos, fCliente, clientePorId]);
 
   // Pagos del cliente con cuánto queda por poder devolver de cada uno
   const pagosReembolsables = useMemo(() => {
@@ -648,7 +692,8 @@ function ReembolsosTab() {
 
   return (
     <div>
-      <div className="flex justify-end mb-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+        <input aria-label="Buscar cliente" placeholder="Buscar cliente o unidad…" value={fCliente} onChange={(e) => setFCliente(e.target.value)} className="border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-[13px] w-56 focus:outline-none focus:border-accent" />
         <button className="btn-accent" onClick={() => setAbierto(true)}>
           Nuevo reembolso
         </button>
@@ -662,7 +707,7 @@ function ReembolsosTab() {
                 <span key={h} className="th-label">{h}</span>
               ))}
             </div>
-            {reembolsos.map((r) => {
+            {reembolsosFiltrados.map((r) => {
               const cliente = clientePorId.get(r.clienteId);
               return (
                 <div key={r.id} className="grid grid-cols-[.6fr_.8fr_1.4fr_.7fr_1.3fr_.7fr_50px] gap-2 px-5 py-2.5 border-b border-line-soft text-[13px] items-center hover:bg-surface-2 transition-colors">
@@ -685,7 +730,7 @@ function ReembolsosTab() {
                 </div>
               );
             })}
-            {reembolsos.length === 0 && (
+            {reembolsosFiltrados.length === 0 && (
               <div className="px-5 py-8 text-ink-soft text-sm text-center">No hay reembolsos registrados.</div>
             )}
           </div>
@@ -787,7 +832,7 @@ function sugerirCliente(texto: string | undefined, activos: Cliente[]): string {
 type FiltroBandeja = 'pendiente' | 'aplicado' | 'descartado';
 
 function BandejaPagosEmailTab() {
-  const { clientes, getPagosEmail, actualizarBandejaPagosEmail, aplicarPagoEmail, descartarPagoEmail, estadoOutlookConfigurado } = useDataStore();
+  const { clientes, getPagosEmail, actualizarBandejaPagosEmail, aplicarPagoEmail, descartarPagoEmail, restaurarPagoEmail, estadoOutlookConfigurado } = useDataStore();
   const [filas, setFilas] = useState<PagoEmail[]>([]);
   const [configurado, setConfigurado] = useState<boolean | null>(null);
   const [filtro, setFiltro] = useState<FiltroBandeja>('pendiente');
@@ -796,6 +841,9 @@ function BandejaPagosEmailTab() {
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
   const [trabajando, setTrabajando] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
 
   const activos = useMemo(() => clientes.filter((c) => c.estado === 'activo'), [clientes]);
   const clientePorId = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
@@ -852,9 +900,29 @@ function BandejaPagosEmailTab() {
     }
   }
 
+  async function restaurar(f: PagoEmail) {
+    setTrabajando(f.id);
+    try {
+      await restaurarPagoEmail(f.id);
+      setFilas((prev) => prev.map((x) => (x.id === f.id ? { ...x, estado: 'pendiente' } : x)));
+    } catch (e) {
+      setMensaje({ tipo: 'error', texto: (e as Error).message });
+    } finally {
+      setTrabajando(null);
+    }
+  }
+
   const esRojo = (f: PagoEmail) => !!f.resultado && f.resultado !== 'aprobado';
   // los rojos (rechazados / solicitudes) van primero: son los que hay que resolver a mano
-  const visibles = filas.filter((f) => f.estado === filtro).sort((a, b) => Number(esRojo(b)) - Number(esRojo(a)));
+  const qBus = busqueda.trim().toLowerCase();
+  const coincide = (f: PagoEmail) => {
+    if (!qBus) return true;
+    const c = f.clienteId ? clientePorId.get(f.clienteId) : undefined;
+    return `${f.remitente} ${f.descripcion ?? ''} ${c ? `${c.codigo} ${c.nombre}` : ''}`.toLowerCase().includes(qBus);
+  };
+  const filtradasBandeja = filas.filter((f) => f.estado === filtro && coincide(f)).sort((a, b) => Number(esRojo(b)) - Number(esRojo(a)));
+  const totalPaginas = Math.max(1, Math.ceil(filtradasBandeja.length / pageSize));
+  const visibles = filtradasBandeja.slice((pagina - 1) * pageSize, pagina * pageSize);
   const cuenta = (e: FiltroBandeja) => filas.filter((f) => f.estado === e).length;
   const rojosPendientes = filas.filter((f) => f.estado === 'pendiente' && esRojo(f)).length;
   const grid = 'grid grid-cols-[104px_minmax(140px,1fr)_minmax(160px,1.3fr)_90px_minmax(260px,1.6fr)] gap-2 px-5';
@@ -866,7 +934,7 @@ function BandejaPagosEmailTab() {
           {(['pendiente', 'aplicado', 'descartado'] as FiltroBandeja[]).map((e) => (
             <button
               key={e}
-              onClick={() => setFiltro(e)}
+              onClick={() => { setFiltro(e); setPagina(1); }}
               aria-pressed={filtro === e} className={`chip ${filtro === e ? 'chip-accent' : ''} cursor-pointer`}
             >
               {e === 'pendiente' ? 'Pendientes' : e === 'aplicado' ? 'Aplicados' : 'Descartados'} · {cuenta(e)}
@@ -874,6 +942,7 @@ function BandejaPagosEmailTab() {
             </button>
           ))}
         </div>
+        <input aria-label="Buscar por nombre" placeholder="Buscar remitente, descripción o unidad…" value={busqueda} onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }} className="border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-[13px] w-64 focus:outline-none focus:border-accent" />
         <button onClick={actualizar} disabled={cargando || configurado === false} className="btn-accent inline-flex items-center gap-2 disabled:opacity-50">
           <RefreshCw size={14} className={cargando ? 'animate-spin' : ''} /> Actualizar bandeja
         </button>
@@ -957,7 +1026,10 @@ function BandejaPagosEmailTab() {
                         </div>
                       </div>
                     ) : (
-                      <span className="chip">Descartado</span>
+                      <div className="flex items-center gap-2">
+                        <span className="chip">Descartado</span>
+                        <button onClick={() => restaurar(f)} disabled={trabajando === f.id} className="text-[12.5px] text-accent font-medium hover:underline">Revertir descarte</button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -965,11 +1037,12 @@ function BandejaPagosEmailTab() {
             })}
             {visibles.length === 0 && (
               <div className="px-5 py-10 text-center text-sm text-ink-soft">
-                {filtro === 'pendiente' ? 'No hay pagos pendientes. Apretá "Actualizar bandeja" para buscar en el mail.' : 'Nada por acá todavía.'}
+                {qBus ? 'Ningún pago coincide con la búsqueda.' : filtro === 'pendiente' ? 'No hay pagos pendientes. Apretá "Actualizar bandeja" para buscar en el mail.' : 'Nada por acá todavía.'}
               </div>
             )}
           </div>
         </div>
+        <Pagination pagina={pagina} totalPaginas={totalPaginas} totalItems={filtradasBandeja.length} pageSize={pageSize} onPageChange={setPagina} onPageSizeChange={(n) => { setPageSize(n); setPagina(1); }} etiqueta="pagos" opciones={[30, 60, 100]} />
       </div>
     </div>
   );

@@ -49,9 +49,9 @@ facturasRouter.post('/', async (req, res) => {
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
 
   let beneficiarioId = null;
-  if (b.codigo === '1060DR') {
+  if (b.codigo === '1090DR') {
     if (!b.beneficiarioId || b.beneficiarioId === b.clienteId) {
-      return res.status(400).json({ error: 'Una factura 1060DR necesita la unidad beneficiaria del saldo a favor (distinta a la que la paga).' });
+      return res.status(400).json({ error: 'Una factura 1090DR necesita la unidad beneficiaria del saldo a favor (distinta a la que la paga).' });
     }
     const ben = await db.prepare('SELECT id FROM clientes WHERE id = ?').get(b.beneficiarioId);
     if (!ben) return res.status(400).json({ error: 'La unidad beneficiaria no existe.' });
@@ -171,6 +171,9 @@ function cambiosDeFactura(actual, b) {
   if (b.fechaVencimiento !== undefined && b.fechaVencimiento !== actual.fecha_vencimiento) {
     cambios.push({ campo: 'Vencimiento', anterior: actual.fecha_vencimiento, nuevo: b.fechaVencimiento });
   }
+  if (b.fecha !== undefined && b.fecha !== actual.fecha) cambios.push({ campo: 'Fecha', anterior: actual.fecha, nuevo: b.fecha });
+  if (b.codigo !== undefined && (b.codigo || null) !== (actual.codigo || null)) cambios.push({ campo: 'Código', anterior: actual.codigo || '—', nuevo: b.codigo || '—' });
+  if (b.clienteId !== undefined && b.clienteId !== actual.cliente_id) cambios.push({ campo: 'Cliente', anterior: actual.cliente_id, nuevo: b.clienteId });
   return cambios;
 }
 
@@ -181,9 +184,21 @@ export async function editarFacturaCore(id, b, autor) {
   const nuevoMonto = b.monto !== undefined ? aCentavos(b.monto) : actual.monto;
   const estado = actual.monto_pagado >= nuevoMonto ? 'pagada' : actual.monto_pagado > 0 ? 'parcial' : 'pendiente';
 
+  // Traspasar la factura a otra unidad solo si todavía no tiene pagos ni notas aplicadas.
+  let clienteNuevo = actual.cliente_id;
+  if (b.clienteId !== undefined && b.clienteId !== actual.cliente_id) {
+    if (actual.monto_pagado > 0) throw new ErrorHttp(409, `La factura #${actual.numero} ya tiene pagos aplicados: primero hay que desaplicarlos para pasarla a otra unidad.`);
+    const destino = await db.prepare('SELECT id, codigo, nombre FROM clientes WHERE id = ?').get(b.clienteId);
+    if (!destino) throw new ErrorHttp(404, 'La unidad de destino no existe.');
+    const origen = await db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(actual.cliente_id);
+    clienteNuevo = destino.id;
+    const c = cambios.find((x) => x.campo === 'Cliente');
+    if (c) { c.anterior = origen ? `${origen.codigo} ${origen.nombre}` : actual.cliente_id; c.nuevo = `${destino.codigo} ${destino.nombre}`; }
+  }
+
   await db
-    .prepare('UPDATE facturas SET concepto = ?, monto = ?, fecha_vencimiento = ?, estado = ? WHERE id = ?')
-    .run(b.concepto ?? actual.concepto, nuevoMonto, b.fechaVencimiento ?? actual.fecha_vencimiento, estado, id);
+    .prepare('UPDATE facturas SET concepto = ?, monto = ?, fecha_vencimiento = ?, estado = ?, fecha = ?, codigo = ?, cliente_id = ? WHERE id = ?')
+    .run(b.concepto ?? actual.concepto, nuevoMonto, b.fechaVencimiento ?? actual.fecha_vencimiento, estado, b.fecha ?? actual.fecha, b.codigo !== undefined ? b.codigo || null : actual.codigo, clienteNuevo, id);
 
   if (cambios.length > 0) {
     await registrarAuditoria({ usuario: autor, accion: 'Editó factura', entidad: 'Factura', entidadId: id, resumen: `Se corrigió la factura #${actual.numero}`, cambios });
@@ -223,6 +238,11 @@ facturasRouter.patch('/:id', async (req, res, next) => {
     const b = req.body ?? {};
     const detalle = cambiosDeFactura(actual, b);
     if (detalle.length === 0) return res.json(serializar(actual));
+    if (b.clienteId !== undefined && b.clienteId !== actual.cliente_id) {
+      const [o, d] = await Promise.all([db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(actual.cliente_id), db.prepare('SELECT codigo, nombre FROM clientes WHERE id = ?').get(b.clienteId)]);
+      const c = detalle.find((x) => x.campo === 'Cliente');
+      if (c && o && d) { c.anterior = `${o.codigo} ${o.nombre}`; c.nuevo = `${d.codigo} ${d.nombre}`; }
+    }
     const soloConcepto = detalle.every((c) => c.campo === 'Concepto');
     await ejecutarOSolicitar(req, res, {
       tipo: 'editar_factura',
@@ -231,7 +251,7 @@ facturasRouter.patch('/:id', async (req, res, next) => {
       fecha: actual.fecha,
       resumen: `Corregir la factura #${actual.numero} de ${(await db.prepare('SELECT nombre FROM clientes WHERE id = ?').get(actual.cliente_id))?.nombre ?? ''}`.trim(),
       detalle,
-      payload: { id: actual.id, cambios: { concepto: b.concepto, monto: b.monto, fechaVencimiento: b.fechaVencimiento } },
+      payload: { id: actual.id, cambios: { concepto: b.concepto, monto: b.monto, fechaVencimiento: b.fechaVencimiento, fecha: b.fecha, codigo: b.codigo, clienteId: b.clienteId } },
       permitido: soloConcepto || req.usuario.rol !== 'operador',
       aplicar: () => editarFacturaCore(actual.id, b, req.usuario.nombre),
     });
@@ -257,6 +277,47 @@ facturasRouter.delete('/:id', async (req, res, next) => {
       permitido: esAdmin(req.usuario),
       aplicar: () => eliminarFacturaCore(f.id, req.usuario.nombre),
     });
+  } catch (e) {
+    responderError(res, e, next);
+  }
+});
+
+// Cobros indebidos (1090CI): cuando la unidad que cobró de más ya pagó, la administración reparte ese dinero
+// como saldos a favor (1090SAF) para quien le descontó al cliente. Puede ser en varias partes
+// (ej. $20 cobrados de más y el cliente después hace viajes de $6) hasta agotar el total.
+facturasRouter.post('/:id/asignar-saf', async (req, res, next) => {
+  try {
+    if (!esAdmin(req.usuario)) throw new ErrorHttp(403, 'Solo la administración puede asignar saldos a favor.');
+    const f = await db.prepare('SELECT * FROM facturas WHERE id = ?').get(req.params.id);
+    if (!f) throw new ErrorHttp(404, 'Factura no encontrada.');
+    if (f.codigo !== '1090CI') throw new ErrorHttp(400, 'Solo las facturas de Cobros indebidos (1090CI) permiten asignar saldo a favor.');
+    if (f.monto_pagado < f.monto) throw new ErrorHttp(409, 'La factura todavía no está pagada: el saldo se asigna recién cuando quien cobró de más lo devuelve.');
+    const asig = Array.isArray(req.body?.asignaciones) ? req.body.asignaciones : [];
+    if (asig.length === 0) throw new ErrorHttp(400, 'Elegí al menos una unidad y un monto.');
+    const nuevas = asig.map((a) => ({ clienteId: a.clienteId, monto: aCentavos(a.monto) }));
+    if (nuevas.some((a) => !a.clienteId || !(a.monto > 0))) throw new ErrorHttp(400, 'Cada línea necesita unidad y un monto mayor a 0.');
+    const ya = (await db.prepare('SELECT COALESCE(SUM(monto), 0)::int AS t FROM notas_credito WHERE origen_factura_id = ?').get(f.id)).t;
+    const suma = nuevas.reduce((a, x) => a + x.monto, 0);
+    if (ya + suma > f.monto) throw new ErrorHttp(409, `Solo quedan $${aDolares(f.monto - ya)} por asignar de esta factura (ya se asignaron $${aDolares(ya)}).`);
+    const origen = await db.prepare('SELECT codigo FROM clientes WHERE id = ?').get(f.cliente_id);
+    const creadas = [];
+    await db.transaction(async (tx) => {
+      for (const a of nuevas) {
+        const dest = await tx.prepare('SELECT id, codigo FROM clientes WHERE id = ?').get(a.clienteId);
+        if (!dest) throw new ErrorHttp(404, 'Una de las unidades no existe.');
+        const numero = ((await tx.prepare('SELECT MAX(numero) as n FROM notas_credito').get()).n ?? 5000) + 1;
+        const id = generarId('nc');
+        const motivo = `1090SAF · Saldo a favor por 1090CI de ${origen?.codigo ?? ''} (factura #${f.numero})`;
+        await tx.prepare(`INSERT INTO notas_credito (id, numero, cliente_id, fecha, monto, monto_aplicado, motivo, aplicada, origen_factura_id) VALUES (?, ?, ?, ?, ?, 0, ?, false, ?)`)
+          .run(id, numero, dest.id, new Date().toISOString().slice(0, 10), a.monto, motivo, f.id);
+        creadas.push({ id, numero, unidad: dest.codigo, monto: aDolares(a.monto) });
+      }
+    });
+    await registrarAuditoria({
+      usuario: req.usuario.nombre, accion: 'Asignó saldo a favor por cobro indebido', entidad: 'Factura', entidadId: f.id,
+      resumen: `Factura #${f.numero} (1090CI): ${creadas.map((c) => `${c.unidad} $${c.monto}`).join(', ')}`,
+    });
+    res.status(201).json({ creadas, restante: aDolares(f.monto - ya - suma) });
   } catch (e) {
     responderError(res, e, next);
   }

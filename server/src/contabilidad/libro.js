@@ -46,14 +46,14 @@ export async function movimientosApp(desde, hasta, cfg, conn = db) {
 
   const ctas = new Map((await conn.prepare('SELECT id, cuenta_contable FROM cuentas').all()).map((c) => [c.id, c.cuenta_contable]));
 
-  // Facturas: A/R contra el ingreso que corresponde al código de fee. La deuda recuperada (1060DR) NO es ingreso:
+  // Facturas: A/R contra el ingreso que corresponde al código de fee. La deuda recuperada (1090DR) NO es ingreso:
   // es cobrar algo que ya estaba registrado, así que ni la factura ni el saldo a favor que genera pasan por el libro;
   // el pago de esa factura simplemente baja el A/R.
   const facturas = await conn
     .prepare(
       `SELECT f.fecha, f.monto, f.codigo,
               (SELECT cf.cuenta_ingreso FROM catalogo_fees cf WHERE cf.codigo = f.codigo AND cf.cuenta_ingreso IS NOT NULL LIMIT 1) AS cuenta_ingreso
-       FROM facturas f WHERE f.estado <> 'anulada' AND f.codigo IS DISTINCT FROM '1060DR' AND substr(f.fecha, 1, 10) BETWEEN ? AND ?`
+       FROM facturas f WHERE f.estado <> 'anulada' AND f.codigo IS DISTINCT FROM '1090DR' AND substr(f.fecha, 1, 10) BETWEEN ? AND ?`
     )
     .all(desde, hasta);
   for (const f of facturas) par(f.fecha, cfg.ar, cuentaIngresoDeFee(f.codigo, f.cuenta_ingreso, cfg), f.monto, 'factura');

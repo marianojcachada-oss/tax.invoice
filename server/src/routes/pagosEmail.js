@@ -164,6 +164,21 @@ pagosEmailRouter.post('/:id/aplicar', requiereAdmin, async (req, res) => {
   res.json(await serializar(await db.prepare('SELECT * FROM pagos_email WHERE id = ?').get(fila.id)));
 });
 
+pagosEmailRouter.post('/:id/restaurar', requiereAdmin, async (req, res) => {
+  const fila = await db.prepare('SELECT * FROM pagos_email WHERE id = ?').get(req.params.id);
+  if (!fila) return res.status(404).json({ error: 'Pago no encontrado.' });
+  if (fila.estado !== 'descartado') return res.status(400).json({ error: 'Solo se pueden revertir pagos descartados.' });
+  await db.prepare("UPDATE pagos_email SET estado = 'pendiente' WHERE id = ?").run(fila.id);
+  await registrarAuditoria({
+    usuario: req.usuario.nombre,
+    accion: 'Revirtió descarte de pago por mail',
+    entidad: 'PagoEmail',
+    entidadId: fila.id,
+    resumen: `Volvió a pendientes el mail de ${fila.remitente} por $${aDolares(fila.monto)}`,
+  });
+  res.json(await serializar(await db.prepare("SELECT * FROM pagos_email WHERE id = ?").get(fila.id)));
+});
+
 pagosEmailRouter.post('/:id/descartar', requiereAdmin, async (req, res) => {
   const fila = await db.prepare('SELECT * FROM pagos_email WHERE id = ?').get(req.params.id);
   if (!fila) return res.status(404).json({ error: 'Pago no encontrado.' });

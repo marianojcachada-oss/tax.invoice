@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useDataStore } from '../data/DataContext';
+import { ClienteSelect } from './ClienteSelect';
 import type { NotaCredito } from '../types';
 
 export function EditCreditMemoModal({ nota, onClose }: { nota: NotaCredito; onClose: () => void }) {
-  const { editarNotaCredito } = useDataStore();
+  const { editarNotaCredito, clientes } = useDataStore();
+  const [fecha, setFecha] = useState(nota.fecha);
+  const [clienteId, setClienteId] = useState(nota.clienteId);
   const [motivo, setMotivo] = useState(nota.motivo);
   const [monto, setMonto] = useState(String(nota.monto));
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +19,7 @@ export function EditCreditMemoModal({ nota, onClose }: { nota: NotaCredito; onCl
     setError(null);
     setGuardando(true);
     try {
-      await editarNotaCredito(nota.id, { motivo: motivo.trim(), monto: montoNumero });
+      await editarNotaCredito(nota.id, { motivo: motivo.trim(), monto: montoNumero, fecha, clienteId });
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar.');
@@ -40,6 +43,17 @@ export function EditCreditMemoModal({ nota, onClose }: { nota: NotaCredito; onCl
               onChange={(e) => setMotivo(e.target.value)}
               className="w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent"
             />
+          </div>
+          <div>
+            <div className="th-label mb-1">Unidad / cliente</div>
+            <ClienteSelect clientes={clientes} value={clienteId} onChange={setClienteId} />
+            {clienteId !== nota.clienteId && (
+              <div className="text-ink-faint text-[11px] mt-1">Se pasa la nota a otra unidad y el motivo deja constancia (editalo arriba si querés otro concepto).</div>
+            )}
+          </div>
+          <div>
+            <div className="th-label mb-1">Fecha</div>
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent" />
           </div>
           <div>
             <div className="th-label mb-1">Monto</div>

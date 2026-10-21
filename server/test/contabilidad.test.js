@@ -120,13 +120,13 @@ test('plan de cuentas ajustado según el estudio: 24500 corriente, 10300 Checkin
 
 test('cuenta de ingreso por código de fee, según el estudio', () => {
   assert.equal(cuentaIngresoDeFee('1090PB'), '40000');
-  assert.equal(cuentaIngresoDeFee('1060RA'), '40001');
-  assert.equal(cuentaIngresoDeFee('1060RI'), '40001');
-  assert.equal(cuentaIngresoDeFee('1060W'), '40002'); // multa
+  assert.equal(cuentaIngresoDeFee('1090RA'), '40001');
+  assert.equal(cuentaIngresoDeFee('1090RI'), '40001');
+  assert.equal(cuentaIngresoDeFee('1090W'), '40002'); // multa
   assert.equal(cuentaIngresoDeFee('1090ACT'), '40003');
-  assert.equal(cuentaIngresoDeFee('1060RC'), '42000');
+  assert.equal(cuentaIngresoDeFee('1090RC'), '42000');
   assert.equal(cuentaIngresoDeFee('XYZ'), '41001'); // otro ingreso
-  assert.equal(cuentaIngresoDeFee('1060W', '40005'), '40005'); // lo elegido a mano manda
+  assert.equal(cuentaIngresoDeFee('1090W', '40005'), '40005'); // lo elegido a mano manda
 });
 
 test('el Profit and Loss reproduce el de QuickBooks celda por celda', async () => {
@@ -264,9 +264,9 @@ test('A/P Aging Summary: bills abiertas por proveedor y antigüedad', async () =
   assert.equal(fila.valores[2], 15000); // vencida hace 31 días -> columna 31 - 60
 });
 
-test('deuda recuperada (1060DR) no genera ingreso: la factura y su saldo a favor no pasan por el libro', async () => {
+test('deuda recuperada (1090DR) no genera ingreso: la factura y su saldo a favor no pasan por el libro', async () => {
   const antes = await profitAndLoss({ desde: '2026-01-01', hasta: '2026-12-31' });
-  await db.prepare(`INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, codigo) VALUES ('fdr', 900, 'c2', 1, '2026-11-02', '2026-11-02', 'Deuda Recuperada', 30000, 0, 'pendiente', '1060DR')`).run();
+  await db.prepare(`INSERT INTO facturas (id, numero, cliente_id, semana, fecha, fecha_vencimiento, concepto, monto, monto_pagado, estado, codigo) VALUES ('fdr', 900, 'c2', 1, '2026-11-02', '2026-11-02', 'Deuda Recuperada', 30000, 0, 'pendiente', '1090DR')`).run();
   const despues = await profitAndLoss({ desde: '2026-01-01', hasta: '2026-12-31' });
   assert.equal(despues.netIncome, antes.netIncome);
 });

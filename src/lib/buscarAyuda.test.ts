@@ -29,7 +29,7 @@ describe('normalizar / tokenizar', () => {
     expect('Reembolsó 💸'.length).toBe(normalizar('Reembolsó 💸').length);
   });
   it('separa en palabras', () => {
-    expect(tokenizar('  Plan de-pago, 1060DR ')).toEqual(['plan', 'de', 'pago', '1060dr']);
+    expect(tokenizar('  Plan de-pago, 1090DR ')).toEqual(['plan', 'de', 'pago', '1090dr']);
   });
 });
 
@@ -65,8 +65,8 @@ describe('buscarAyuda', () => {
     expect(r.every((x) => x.tema.seccion === 'Dinero')).toBe(true);
   });
   it('encuentra códigos de fee', () => {
-    expect(ids('1060DR')).toContain('deuda-recuperada');
-    expect(ids('1060saf')).toContain('deuda-recuperada');
+    expect(ids('1090DR')).toContain('deuda-recuperada');
+    expect(ids('1090saf')).toContain('deuda-recuperada');
   });
 });
 

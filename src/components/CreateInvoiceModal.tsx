@@ -18,6 +18,7 @@ export function CreateInvoiceModal({ clienteId: clienteIdFijo, onClose }: Props)
   const [codigo, setCodigo] = useState<string | undefined>(undefined);
   const [monto, setMonto] = useState('');
   const [beneficiarioId, setBeneficiarioId] = useState('');
+  const [fechaOrigen, setFechaOrigen] = useState('');
   const [fechaVencimiento, setFechaVencimiento] = useState(
     () => new Date().toISOString().slice(0, 10)
   );
@@ -29,7 +30,7 @@ export function CreateInvoiceModal({ clienteId: clienteIdFijo, onClose }: Props)
   const montoNumero = Number(monto);
   const montoValido = monto !== '' && !Number.isNaN(montoNumero) && montoNumero > 0;
   const esOtro = itemId === OTRO;
-  const esRecupero = codigo === '1060DR';
+  const esRecupero = codigo === '1090DR';
 
   function handleElegirItem(id: string) {
     setItemId(id);
@@ -69,12 +70,20 @@ export function CreateInvoiceModal({ clienteId: clienteIdFijo, onClose }: Props)
       setError('Elegí la unidad que va a recibir el saldo a favor (distinta a la que recuperó el dinero).');
       return;
     }
+    if (esRecupero && !fechaOrigen) {
+      setError('Indicá la fecha en que se generó la deuda original.');
+      return;
+    }
     setError(null);
     enviandoRef.current = true;
+    const deudor = esRecupero ? getCliente(beneficiarioId) : undefined;
+    const conceptoFinal = esRecupero
+      ? `${concepto.trim()} · deuda de ${deudor ? `${deudor.codigo} ${deudor.nombre}` : ''} del ${fechaOrigen}`
+      : concepto.trim();
     agregarFactura({
       beneficiarioId: esRecupero ? beneficiarioId : undefined,
       clienteId,
-      concepto: concepto.trim(),
+      concepto: conceptoFinal,
       monto: montoNumero,
       fechaVencimiento,
       codigo,
@@ -142,8 +151,15 @@ export function CreateInvoiceModal({ clienteId: clienteIdFijo, onClose }: Props)
 
             {esRecupero && (
               <div className="px-4 py-3 border-b border-line bg-success-bg">
-                <div className="th-label mb-1">Unidad a la que se le recuperó la deuda (recibe el 1060SAF)</div>
+                <div className="th-label mb-1">Unidad a la que se le recuperó la deuda (recibe el 1090SAF)</div>
                 <ClienteSelect clientes={clientes.filter((c) => c.id !== clienteId)} value={beneficiarioId} onChange={setBeneficiarioId} />
+                <div className="th-label mb-1 mt-3">Fecha en que se generó la deuda original</div>
+                <input
+                  type="date"
+                  value={fechaOrigen}
+                  onChange={(e) => setFechaOrigen(e.target.value)}
+                  className="w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent"
+                />
                 <div className="text-ink-soft text-[12px] mt-1.5">
                   Cuando esta factura quede paga, se crea automáticamente una nota de crédito por el mismo monto en la ficha de esa unidad, ligada a esta factura.
                 </div>

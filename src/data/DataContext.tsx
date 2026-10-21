@@ -92,9 +92,10 @@ interface DataStore {
   actualizarCliente: (
     id: string,
     cambios: Partial<Omit<Cliente, 'id'>>
-  ) => Promise<{ codigo: string; etiqueta: string; monto: number; facturaId: string } | null>;
+  ) => Promise<{ codigo: string; etiqueta: string; monto: number } | null>;
   agregarFactura: (input: { clienteId: string; concepto: string; monto: number; fechaVencimiento?: string; codigo?: string; beneficiarioId?: string }) => Promise<Factura>;
-  editarFactura: (facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string }) => Promise<void>;
+  editarFactura: (facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string; fecha?: string; codigo?: string; clienteId?: string }) => Promise<void>;
+  asignarSaldoAFavor: (facturaId: string, asignaciones: { clienteId: string; monto: number }[]) => Promise<void>;
   eliminarFactura: (facturaId: string) => Promise<void>;
   recargarTodo: () => Promise<void>;
   generarFacturasSemanales: () => Promise<{ semana: number; generadas: number; salteadasInactivos: number; yaExistian: number; feesAplicados: number }>;
@@ -112,7 +113,7 @@ interface DataStore {
   ) => Promise<void>;
 
   agregarNotaCredito: (input: Omit<NotaCredito, 'id' | 'numero' | 'montoAplicado' | 'facturasAplicadas'>) => Promise<NotaCredito>;
-  editarNotaCredito: (notaId: string, cambios: { motivo?: string; monto?: number }) => Promise<void>;
+  editarNotaCredito: (notaId: string, cambios: { motivo?: string; monto?: number; fecha?: string; clienteId?: string }) => Promise<void>;
   aplicarNotaCredito: (notaId: string, facturaIds: string[]) => Promise<void>;
   agregarReembolso: (input: Omit<Reembolso, 'id' | 'numero'>) => Promise<Reembolso>;
   agregarGasto: (input: Omit<Gasto, 'id'>) => Promise<Gasto>;
@@ -149,6 +150,7 @@ interface DataStore {
   actualizarBandejaPagosEmail: () => Promise<{ encontrados: number; nuevos: number }>;
   aplicarPagoEmail: (id: string, clienteId: string, confirmarSinDinero?: boolean) => Promise<PagoEmail>;
   descartarPagoEmail: (id: string) => Promise<void>;
+  restaurarPagoEmail: (id: string) => Promise<void>;
   estadoOutlookConfigurado: () => Promise<{ configurado: boolean }>;
   importarHistorial: (bloques: BloqueHistorial[], opciones?: { desde?: string | null; hasta?: string | null; refrescar?: boolean }) => Promise<ResultadoLoteHistorial>;
   recargarMovimientos: () => Promise<void>;
@@ -324,13 +326,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     async function actualizarCliente(id: string, cambios: Partial<Omit<Cliente, 'id'>>) {
-      const respuesta = await api.patch<Cliente & { feeAutomatico: { codigo: string; etiqueta: string; monto: number; facturaId: string } | null }>(
+      const respuesta = await api.patch<Cliente & { feeAutomatico: { codigo: string; etiqueta: string; monto: number } | null }>(
         `/clientes/${id}`,
         cambios
       );
       const { feeAutomatico, ...actualizado } = respuesta;
       setClientes((prev) => prev.map((c) => (c.id === id ? actualizado : c)));
-      if (feeAutomatico) setFacturas(await api.get<Factura[]>('/facturas'));
       return feeAutomatico ?? null;
     }
 
@@ -340,10 +341,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return nueva;
     }
 
-    async function editarFactura(facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string }) {
+    async function editarFactura(facturaId: string, cambios: { concepto?: string; monto?: number; fechaVencimiento?: string; fecha?: string; codigo?: string; clienteId?: string }) {
       const actualizada = await api.patch<Factura>(`/facturas/${facturaId}`, cambios);
       if (esSolicitud(actualizada)) return; // quedó pendiente de aprobación
       setFacturas((prev) => prev.map((f) => (f.id === facturaId ? actualizada : f)));
+    }
+
+    async function asignarSaldoAFavor(facturaId: string, asignaciones: { clienteId: string; monto: number }[]) {
+      await api.post(`/facturas/${facturaId}/asignar-saf`, { asignaciones });
+      setNotasCredito(await api.get<NotaCredito[]>('/notas-credito'));
     }
 
     async function eliminarFactura(facturaId: string) {
@@ -364,7 +370,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const pago = await api.post<Pago>('/pagos', input);
       setPagos((prev) => [pago, ...prev]);
       setFacturas(await api.get<Factura[]>('/facturas'));
-      setNotasCredito(await api.get<NotaCredito[]>('/notas-credito')); // por si una factura 1060DR generó saldo a favor
+      setNotasCredito(await api.get<NotaCredito[]>('/notas-credito')); // por si una factura 1090DR generó saldo a favor
       return pago;
     }
 
@@ -382,7 +388,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return nueva;
     }
 
-    async function editarNotaCredito(notaId: string, cambios: { motivo?: string; monto?: number }) {
+    async function editarNotaCredito(notaId: string, cambios: { motivo?: string; monto?: number; fecha?: string; clienteId?: string }) {
       const actualizada = await api.patch<NotaCredito>(`/notas-credito/${notaId}`, cambios);
       if (esSolicitud(actualizada)) return;
       setNotasCredito((prev) => prev.map((n) => (n.id === notaId ? actualizada : n)));
@@ -533,6 +539,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await api.post(`/pagos-email/${id}/descartar`);
     }
 
+    async function restaurarPagoEmail(id: string) {
+      await api.post(`/pagos-email/${id}/restaurar`);
+    }
+
     function estadoOutlookConfigurado() {
       return api.get<{ configurado: boolean }>('/pagos-email/estado-outlook');
     }
@@ -629,6 +639,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       agregarFactura,
       editarFactura,
       eliminarFactura,
+      asignarSaldoAFavor,
       recargarTodo: cargarTodo,
       generarFacturasSemanales,
       registrarPago,
@@ -659,6 +670,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       actualizarBandejaPagosEmail,
       aplicarPagoEmail,
       descartarPagoEmail,
+      restaurarPagoEmail,
       estadoOutlookConfigurado,
       importarHistorial,
       recargarMovimientos,

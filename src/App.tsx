@@ -16,6 +16,7 @@ import { Settings } from './pages/Settings';
 import { Informes } from './pages/Informes';
 import { Help } from './pages/Help';
 import { Solicitudes } from './pages/Solicitudes';
+import { Undeposited } from './pages/Undeposited';
 
 export default function App() {
   return (
@@ -79,6 +80,7 @@ function AuthGate() {
           <Route path="/configuracion" element={<Settings />} />
           <Route path="/informes" element={veInformes ? <Informes /> : <Dashboard />} />
           <Route path="/solicitudes" element={<Solicitudes />} />
+          <Route path="/undeposited" element={<Undeposited />} />
           <Route path="/ayuda" element={<Help />} />
         </Routes>
       </Layout>

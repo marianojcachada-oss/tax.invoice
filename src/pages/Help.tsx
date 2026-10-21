@@ -5,7 +5,7 @@ import { useDataStore } from '../data/DataContext';
 import { SECCIONES, TEMAS } from '../data/ayuda';
 import { buscarAyuda, resaltar, tokenizar } from '../lib/buscarAyuda';
 
-const SUGERENCIAS = ['registrar pago', 'reembolso', 'zelle', 'plan de pago', 'dar de baja', 'importar', '1060DR', 'recordatorio'];
+const SUGERENCIAS = ['registrar pago', 'reembolso', 'zelle', 'plan de pago', 'dar de baja', 'importar', '1090DR', 'recordatorio'];
 
 function Resaltado({ texto, tokens }: { texto: string; tokens: string[] }) {
   return (

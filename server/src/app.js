@@ -20,6 +20,8 @@ import { historialRouter } from './routes/historial.js';
 import { catalogoFeesRouter } from './routes/catalogoFees.js';
 import { pagosEmailRouter } from './routes/pagosEmail.js';
 import { contabilidadRouter } from './routes/contabilidad.js';
+import { bajaAutomaticaRouter } from './bajaAutomatica.js';
+import { undepositedRouter } from './routes/undeposited.js';
 import { solicitudesRouter } from './routes/solicitudes.js';
 import { soloLecturaParaOperador } from './permisos.js';
 import { requiereSesion } from './auth.js';
@@ -57,6 +59,8 @@ app.use('/api/catalogo-fees', requiereSesion, catalogoFeesRouter);
 app.use('/api/pagos-email', requiereSesion, pagosEmailRouter);
 
 app.use('/api/contabilidad', requiereSesion, contabilidadRouter);
+app.use('/api/baja-automatica', requiereSesion, bajaAutomaticaRouter);
+app.use('/api/undeposited', requiereSesion, undepositedRouter);
 app.use('/api/solicitudes', requiereSesion, solicitudesRouter);
 
 app.get('/api/salud', (req, res) => res.json({ ok: true, hora: new Date().toISOString() }));

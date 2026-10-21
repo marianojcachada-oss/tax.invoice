@@ -47,6 +47,8 @@ export interface ItemCatalogoFee {
   etiqueta: string;
   monto: number;
   orden: number;
+  /** true: se vuelve a facturar cada semana mientras esté tildado; false: multa, se cobra una sola vez. */
+  seArrastra: boolean;
 }
 
 export type MetodoPago = 'zelle' | 'efectivo' | 'kotapay' | 'ach' | 'tarjeta' | 'stripe';

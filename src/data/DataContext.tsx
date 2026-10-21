@@ -148,10 +148,10 @@ interface DataStore {
   aplicarPagoEmail: (id: string, clienteId: string, confirmarSinDinero?: boolean) => Promise<PagoEmail>;
   descartarPagoEmail: (id: string) => Promise<void>;
   estadoOutlookConfigurado: () => Promise<{ configurado: boolean }>;
-  importarHistorial: (bloques: BloqueHistorial[], opciones?: { desde?: string | null; refrescar?: boolean }) => Promise<ResultadoLoteHistorial>;
+  importarHistorial: (bloques: BloqueHistorial[], opciones?: { desde?: string | null; hasta?: string | null; refrescar?: boolean }) => Promise<ResultadoLoteHistorial>;
   recargarMovimientos: () => Promise<void>;
   agregarItemCatalogoFee: (input: { codigo: string; etiqueta: string; monto: number }) => Promise<ItemCatalogoFee>;
-  actualizarItemCatalogoFee: (id: string, cambios: Partial<{ codigo: string; etiqueta: string; monto: number }>) => Promise<void>;
+  actualizarItemCatalogoFee: (id: string, cambios: Partial<{ codigo: string; etiqueta: string; monto: number; seArrastra: boolean }>) => Promise<void>;
   eliminarItemCatalogoFee: (id: string) => Promise<void>;
   getFeesPendientesDeCliente: (clienteId: string) => Promise<string[]>;
   marcarFeePendiente: (clienteId: string, feeId: string) => Promise<void>;
@@ -551,8 +551,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setReembolsos(await api.get<Reembolso[]>('/reembolsos'));
     }
 
-    async function importarHistorial(bloques: BloqueHistorial[], opciones: { desde?: string | null; refrescar?: boolean } = {}) {
-      const resultado = await api.post<ResultadoLoteHistorial>('/facturas/importar-historial', { bloques, desde: opciones.desde ?? null });
+    async function importarHistorial(bloques: BloqueHistorial[], opciones: { desde?: string | null; hasta?: string | null; refrescar?: boolean } = {}) {
+      const resultado = await api.post<ResultadoLoteHistorial>('/facturas/importar-historial', { bloques, desde: opciones.desde ?? null, hasta: opciones.hasta ?? null });
       if (opciones.refrescar !== false) await recargarMovimientos();
       return resultado;
     }
@@ -563,7 +563,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return nuevo;
     }
 
-    async function actualizarItemCatalogoFee(id: string, cambios: Partial<{ codigo: string; etiqueta: string; monto: number }>) {
+    async function actualizarItemCatalogoFee(id: string, cambios: Partial<{ codigo: string; etiqueta: string; monto: number; seArrastra: boolean }>) {
       const actualizado = await api.patch<ItemCatalogoFee>(`/catalogo-fees/${id}`, cambios);
       setCatalogoFees((prev) => prev.map((f) => (f.id === id ? actualizado : f)));
     }

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { api } from '../data/apiClient';
 import * as XLSX from 'xlsx';
 import { useDataStore } from '../data/DataContext';
 import type { BloqueHistorial, MovimientoQB, ResultadoLoteHistorial, TipoMovimientoQB } from '../data/DataContext';
@@ -84,10 +85,47 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
   const [leyendo, setLeyendo] = useState(false);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
   const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [borrando, setBorrando] = useState(false);
+  const [confirmarBorrar, setConfirmarBorrar] = useState('');
+  const [msgBorrado, setMsgBorrado] = useState<string | null>(null);
   const [progreso, setProgreso] = useState<{ hecho: number; total: number } | null>(null);
   const [errorImport, setErrorImport] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoLoteHistorial | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  type Verificacion = { rango: { concepto: string; cantArchivo: number; montoArchivo: number; cantApp: number | null; montoApp: number; dif: number }[] | null; revisados: number; coinciden: number; cantidadDiferencias: number; diferencias: { nombreQb: string; archivo: number; app: number; dif: number }[]; totalArchivo: number; totalApp: number; sinHistorial: string[]; sinCliente: string[]; facturasApp: number; pagosApp: number };
+  const [verif, setVerif] = useState<Verificacion | null>(null);
+  const [verificando, setVerificando] = useState(false);
+  const [errorVerif, setErrorVerif] = useState<string | null>(null);
+
+  async function handleVerificar() {
+    if (!bloques) return;
+    setVerificando(true); setErrorVerif(null);
+    try {
+      const hastaOk = /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? hasta : null;
+      const desdeOk = /^\d{4}-\d{2}-\d{2}$/.test(desde) ? desde : null;
+      const totales = { facturas: { n: 0, monto: 0 }, pagos: { n: 0, monto: 0 }, creditos: { n: 0, monto: 0 } };
+      const clientesArchivo = bloques
+        .filter((b) => !esNoCliente(b.nombreQb) && nombresConocidos.has(b.nombreQb))
+        .map((b) => {
+          for (const t of b.transacciones) {
+            if ((desdeOk && t.fecha < desdeOk) || (hastaOk && t.fecha > hastaOk)) continue;
+            if (t.tipo === 'Invoice' && t.monto > 0) { totales.facturas.n += 1; totales.facturas.monto += t.monto; }
+            else if (t.tipo === 'Payment' && t.monto > 0) { totales.pagos.n += 1; totales.pagos.monto += t.monto; }
+            else if (t.tipo === 'Credit Memo' && t.monto < 0) { totales.creditos.n += 1; totales.creditos.monto -= t.monto; }
+          }
+          return {
+          nombreQb: b.nombreQb,
+          neto: b.transacciones.filter((t) => !hastaOk || t.fecha <= hastaOk).reduce((a, t) => (t.tipo === 'Invoice' || t.tipo === 'Credit Memo' ? a + t.monto : t.tipo === 'Payment' ? a - t.monto : a), 0), // en el archivo: factura +, pago +, nota de crédito −
+          };
+        });
+      setVerif(await api.post<Verificacion>('/facturas/verificar', { clientes: clientesArchivo, desde: desdeOk, hasta: hastaOk, totales }));
+    } catch (e) {
+      setErrorVerif((e as Error).message);
+    } finally {
+      setVerificando(false);
+    }
+  }
 
   const nombresConocidos = useMemo(() => new Set(clientes.map((c) => c.nombreQb).filter(Boolean) as string[]), [clientes]);
 
@@ -134,15 +172,30 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
       else sinCliente.push(b);
     }
     const desdeValida = /^\d{4}-\d{2}-\d{2}$/.test(desde);
+    const hastaValida = /^\d{4}-\d{2}-\d{2}$/.test(hasta);
     const aImportar = conCliente.reduce(
       (a, b) => {
-        const dentro = desdeValida ? b.transacciones.filter((t) => t.fecha >= desde) : b.transacciones;
+        const dentro = b.transacciones.filter((t) => (!desdeValida || t.fecha >= desde) && (!hastaValida || t.fecha <= hasta));
         return { facturas: a.facturas + dentro.filter((t) => t.tipo === 'Invoice' && t.monto > 0).length, pagos: a.pagos + dentro.filter((t) => t.tipo === 'Payment' && t.monto > 0).length };
       },
       { facturas: 0, pagos: 0 }
     );
-    return { porTipo, conCliente, sinCliente, noClientes, aImportar, desdeValida };
-  }, [bloques, nombresConocidos, desde]);
+    return { porTipo, conCliente, sinCliente, noClientes, aImportar, desdeValida, hastaValida };
+  }, [bloques, nombresConocidos, desde, hasta]);
+
+  async function handleBorrar() {
+    setBorrando(true); setMsgBorrado(null);
+    try {
+      const r = await api.post<{ facturas: number; pagos: number; notasCredito: number; reembolsos: number; clientes: number }>('/facturas/borrar-historial-importado', { confirmacion: 'BORRAR' });
+      await recargarMovimientos();
+      setConfirmarBorrar(''); setVerif(null);
+      setMsgBorrado(`Listo: se borraron ${r.facturas.toLocaleString('en-US')} facturas, ${r.pagos.toLocaleString('en-US')} pagos, ${r.notasCredito.toLocaleString('en-US')} notas de crédito y ${r.reembolsos} reembolsos. ${r.clientes} clientes quedaron listos para importar de nuevo.`);
+    } catch (e) {
+      setMsgBorrado((e as Error).message);
+    } finally {
+      setBorrando(false);
+    }
+  }
 
   async function handleImportar() {
     if (!resumen) return;
@@ -163,7 +216,7 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
     setProgreso({ hecho: 0, total });
     try {
       for (const lote of lotes) {
-        const r = await importarHistorial(lote, { desde: resumen.desdeValida ? desde : null, refrescar: false });
+        const r = await importarHistorial(lote, { desde: resumen.desdeValida ? desde : null, hasta: resumen.hastaValida ? hasta : null, refrescar: false });
         acumulado.clientes += r.clientes; acumulado.facturas += r.facturas; acumulado.pagos += r.pagos;
         acumulado.notasCredito += r.notasCredito; acumulado.reembolsos += r.reembolsos; acumulado.excedentes += r.excedentes;
         acumulado.yaImportados.push(...r.yaImportados); acumulado.sinCliente.push(...r.sinCliente);
@@ -249,11 +302,14 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
               <label className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">Cargar el detalle desde</span>
                 <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-8 px-2 border border-line rounded-[5px] bg-surface" />
-                <button className="chip hover:border-accent" onClick={() => setDesde('2026-01-01')}>1/1/2026</button>
-                <button className="chip hover:border-accent" onClick={() => setDesde('')}>Todo</button>
+                <span className="font-medium">hasta</span>
+                <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-8 px-2 border border-line rounded-[5px] bg-surface" />
+                <button className="chip hover:border-accent" onClick={() => { setDesde('2026-01-01'); setHasta('2026-12-31'); }}>Año 2026</button>
+                <button className="chip hover:border-accent" onClick={() => { setDesde('2025-01-01'); setHasta('2025-12-31'); }}>Año 2025</button>
+                <button className="chip hover:border-accent" onClick={() => { setDesde(''); setHasta(''); }}>Todo</button>
               </label>
               <div className="text-ink-faint mt-1.5">
-                Lo anterior a esa fecha se resume en un saldo inicial por cliente (la deuda sigue siendo exacta). Cargar los {(resumen.porTipo.get('Invoice') ?? 0).toLocaleString('en-US')} facturas
+                Lo anterior a «desde» se resume en un saldo inicial por cliente (la deuda sigue siendo exacta) y lo posterior a «hasta» no se carga. Cargar los {(resumen.porTipo.get('Invoice') ?? 0).toLocaleString('en-US')} facturas
                 completas funciona, pero la app carga todo en memoria y se vuelve más lenta; para el día a día alcanza con el año en curso.
               </div>
               <div className="mt-1.5">Se van a cargar unas <b>{resumen.aImportar.facturas.toLocaleString('en-US')}</b> facturas y <b>{resumen.aImportar.pagos.toLocaleString('en-US')}</b> pagos.</div>
@@ -268,6 +324,55 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
                 </ul>
               </div>
             )}
+
+            <div className="border border-line rounded-[6px] p-3 mb-3 text-[12.5px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button className="btn-outline" onClick={handleVerificar} disabled={verificando || importando}>{verificando ? 'Verificando…' : 'Verificar contra lo ya cargado'}</button>
+                <span className="text-ink-faint">Compara, cliente por cliente, la deuda del archivo con la que quedó en la app.</span>
+              </div>
+              {errorVerif && <div className="text-danger-dark mt-2">{errorVerif}</div>}
+              {verif && (
+                <div className="mt-2 flex flex-col gap-1">
+                  <div className={verif.cantidadDiferencias === 0 ? 'text-success font-medium' : 'text-danger-dark font-medium'}>
+                    {verif.coinciden.toLocaleString('en-US')} de {verif.revisados.toLocaleString('en-US')} clientes coinciden
+                    {verif.cantidadDiferencias > 0 && ` · ${verif.cantidadDiferencias} con diferencia`}
+                  </div>
+                  <div className="text-ink-soft">Deuda total del archivo: <b>${verif.totalArchivo.toLocaleString('en-US', { minimumFractionDigits: 2 })}</b> · en la app: <b>${verif.totalApp.toLocaleString('en-US', { minimumFractionDigits: 2 })}</b> · cargado: {verif.facturasApp.toLocaleString('en-US')} facturas y {verif.pagosApp.toLocaleString('en-US')} pagos</div>
+                  {verif.rango && (
+                    <table className="w-full text-[12px] mt-1 border-t border-line-soft">
+                      <thead><tr className="text-ink-faint text-left"><th className="py-1 font-normal">En el rango elegido</th><th className="font-normal text-right">QuickBooks</th><th className="font-normal text-right">App</th><th className="font-normal text-right">Dif.</th></tr></thead>
+                      <tbody>
+                        {verif.rango.map((r) => (
+                          <tr key={r.concepto} className="border-t border-line-soft">
+                            <td className="py-1">{r.concepto}</td>
+                            <td className="text-right num">{r.cantArchivo.toLocaleString('en-US')} · ${r.montoArchivo.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="text-right num">{r.cantApp !== null ? `${r.cantApp.toLocaleString('en-US')} · ` : ''}${r.montoApp.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className={`text-right num ${Math.abs(r.dif) < 0.005 ? 'text-success' : 'text-danger-dark'}`}>{Math.abs(r.dif) < 0.005 ? 'OK' : `$${r.dif.toFixed(2)}`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {verif.sinHistorial.length > 0 && <div className="text-danger-dark">{verif.sinHistorial.length} clientes todavía sin historial cargado (falta importar).</div>}
+                  {verif.sinCliente.length > 0 && <div className="text-danger-dark">{verif.sinCliente.length} clientes del archivo no existen en la app.</div>}
+                  {verif.diferencias.length > 0 && (
+                    <ul className="list-disc pl-4 max-h-[110px] overflow-y-auto">
+                      {verif.diferencias.map((d) => <li key={d.nombreQb}>{normalizarEspacios(d.nombreQb)}: archivo ${d.archivo.toFixed(2)} · app ${d.app.toFixed(2)} (dif. ${d.dif.toFixed(2)})</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="border border-danger/30 rounded-[6px] p-3 mb-3 text-[12.5px]">
+              <div className="font-medium text-danger-dark">Borrar el historial importado</div>
+              <div className="text-ink-faint mt-0.5">Elimina todas las facturas, pagos, notas de crédito y reembolsos que vinieron de QuickBooks (no toca lo generado en la app) y deja a los clientes listos para importar de nuevo, por ejemplo con otro rango de fechas.</div>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <input value={confirmarBorrar} onChange={(e) => setConfirmarBorrar(e.target.value)} placeholder='Escribí BORRAR para confirmar' className="h-8 px-2 border border-line rounded-[5px] bg-surface w-56" />
+                <button className="btn-outline" disabled={confirmarBorrar !== 'BORRAR' || borrando || importando} onClick={handleBorrar}>{borrando ? 'Borrando…' : 'Borrar historial importado'}</button>
+              </div>
+              {msgBorrado && <div className="mt-2 text-ink-soft">{msgBorrado}</div>}
+            </div>
 
             {progreso && (
               <div className="mb-3" role="status" aria-live="polite">

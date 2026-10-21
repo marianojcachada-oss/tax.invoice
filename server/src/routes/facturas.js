@@ -139,10 +139,11 @@ facturasRouter.post('/generar-semanal', async (req, res) => {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'pendiente', ?, ?)`
           )
           .run(generarId('fac-fee'), numero, c.id, semana, hoy, hoy, fee.etiqueta, fee.monto, fee.codigo, req.usuario.nombre);
-        // Ya NO se destilda solo — queda tildado hasta que alguien lo saque
-        // a mano en la ficha del cliente (a propósito: así lo pidió el
-        // usuario). Si se deja tildado, la próxima corrida semanal lo
-        // vuelve a facturar.
+        // Los fees que "se arrastran" (marcados así en el catálogo) quedan tildados hasta que
+        // alguien los saque a mano. Las multas (no se arrastran) se facturan una sola vez y se destildan.
+        if (fee.se_arrastra === false) {
+          await tx.prepare('DELETE FROM cliente_fees_pendientes WHERE cliente_id = ? AND fee_id = ?').run(c.id, fee.id);
+        }
         feesAplicados += 1;
       }
     }

@@ -54,7 +54,7 @@ async function asegurarCatalogoEstandar() {
 }
 
 function serializar(row) {
-  return { id: row.id, codigo: row.codigo, etiqueta: row.etiqueta, monto: aDolares(row.monto), orden: row.orden };
+  return { id: row.id, codigo: row.codigo, etiqueta: row.etiqueta, monto: aDolares(row.monto), orden: row.orden, seArrastra: row.se_arrastra !== false };
 }
 
 async function asegurarDeudaRecuperada() {
@@ -99,11 +99,12 @@ catalogoFeesRouter.patch('/:id', requiereAdmin, async (req, res) => {
   if (!actual) return res.status(404).json({ error: 'No encontrado.' });
   const b = req.body;
   await db
-    .prepare('UPDATE catalogo_fees SET codigo = ?, etiqueta = ?, monto = ? WHERE id = ?')
+    .prepare('UPDATE catalogo_fees SET codigo = ?, etiqueta = ?, monto = ?, se_arrastra = ? WHERE id = ?')
     .run(
       (b.codigo ?? actual.codigo).trim().toUpperCase(),
       (b.etiqueta ?? actual.etiqueta).trim(),
       b.monto !== undefined ? aCentavos(b.monto) : actual.monto,
+      b.seArrastra !== undefined ? !!b.seArrastra : actual.se_arrastra,
       req.params.id
     );
   await registrarAuditoria({
@@ -111,7 +112,7 @@ catalogoFeesRouter.patch('/:id', requiereAdmin, async (req, res) => {
     accion: 'Editó ítem del catálogo de fees',
     entidad: 'CatalogoFees',
     entidadId: req.params.id,
-    resumen: `Se actualizó ${actual.codigo}`,
+    resumen: `Se actualizó ${actual.codigo}${b.seArrastra !== undefined ? (b.seArrastra ? ' (ahora se arrastra cada semana)' : ' (ahora es multa: se cobra una sola vez)') : ''}`,
   });
   const actualizado = await db.prepare('SELECT * FROM catalogo_fees WHERE id = ?').get(req.params.id);
   res.json(serializar(actualizado));

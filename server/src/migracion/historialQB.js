@@ -39,9 +39,10 @@ const rotulo = (tipo, num, memo) => `Migración QuickBooks · ${tipo}${num ? ` #
  * Arma, sin tocar la base, todo lo que hay que insertar para un cliente.
  * eventos: [{ fecha:'YYYY-MM-DD', tipo, num, memo, cuenta, monto }] en el orden del reporte.
  * desde: si se indica, lo anterior se resume en un solo saldo inicial (para no cargar años de historial).
+ * hasta: si se indica, lo posterior a esa fecha no se importa.
  */
-export function planificarCliente(eventos, { desde = null, compensarAlFinal = true } = {}) {
-  const ev = eventos
+export function planificarCliente(eventos, { desde = null, hasta = null, compensarAlFinal = true } = {}) {
+  const ev = eventos.filter((e) => !hasta || e.fecha <= hasta)
     .map((e, i) => ({ ...e, i, cent: Math.round(Number(e.monto) * 100) }))
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.i - b.i));
 
@@ -159,7 +160,7 @@ export async function insertarFilas(tx, tabla, columnas, filas, tanda = 800) {
  * Un cliente se busca por su nombre completo de QuickBooks (nombre_qb). Si el cliente ya tiene su historial
  * importado se omite (así no se duplica si se vuelve a subir el archivo).
  */
-export async function importarLote(db, { bloques, desde = null, usuario, compensarAlFinal = true }) {
+export async function importarLote(db, { bloques, desde = null, hasta = null, usuario, compensarAlFinal = true }) {
   const nombres = bloques.map((b) => b.nombreQb);
   const clientes = await db.prepare('SELECT id, nombre_qb, historial_importado FROM clientes WHERE nombre_qb = ANY(?)').all(nombres);
   const porNombre = new Map(clientes.map((c) => [c.nombre_qb, c]));
@@ -170,7 +171,7 @@ export async function importarLote(db, { bloques, desde = null, usuario, compens
     const c = porNombre.get(b.nombreQb);
     if (!c) { resumen.sinCliente.push(b.nombreQb); continue; }
     if (c.historial_importado) { resumen.yaImportados.push(b.nombreQb); continue; }
-    planes.push({ cliente: c, plan: planificarCliente(b.transacciones, { desde, compensarAlFinal }) });
+    planes.push({ cliente: c, plan: planificarCliente(b.transacciones, { desde, hasta, compensarAlFinal }) });
   }
 
   await db.transaction(async (tx) => {

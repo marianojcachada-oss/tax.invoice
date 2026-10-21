@@ -327,6 +327,8 @@ CREATE TABLE IF NOT EXISTS asiento_lineas (
 
 -- A qué cuenta contable va cada cosa de la app.
 ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS cuenta_ingreso TEXT;
+-- true: el fee tildado en la ficha del cliente se vuelve a facturar cada semana hasta que se lo saque a mano. false (multa): se factura una sola vez y se destilda solo.
+ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS se_arrastra BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE cuentas ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
 ALTER TABLE gastos ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;

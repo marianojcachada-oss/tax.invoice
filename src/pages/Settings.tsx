@@ -552,6 +552,10 @@ function CatalogoFeesPanel() {
               />
             </div>
             <div className="flex items-center gap-3 shrink-0">
+              <label className="flex items-center gap-1.5 text-[11.5px] text-ink-soft cursor-pointer" title="Tildado: si se marca este fee en la ficha de un cliente, se vuelve a facturar cada semana. Destildado: es una multa, se cobra una sola vez.">
+                <input type="checkbox" checked={f.seArrastra} onChange={(e) => actualizarItemCatalogoFee(f.id, { seArrastra: e.target.checked })} />
+                {f.seArrastra ? 'Se arrastra' : 'Multa'}
+              </label>
               <input
                 type="number"
                 defaultValue={f.monto}

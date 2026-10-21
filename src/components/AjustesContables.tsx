@@ -144,9 +144,9 @@ export function AjustesContables({ onCambio }: { onCambio: () => void }) {
       )}
 
       <details className={caja} open={!!config && config.saldosCargados === 0}>
-        <summary className={resumen}>1 · Saldos de arranque desde QuickBooks {config && <span className={`ml-2 ${config.saldosCargados ? 'chip-success' : 'chip-danger'}`}>{config.saldosCargados ? `${config.saldosCargados} cuentas al ${config.corte}` : 'sin cargar'}</span>}</summary>
+        <summary className={resumen}>1 · Saldos de arranque desde el sistema anterior {config && <span className={`ml-2 ${config.saldosCargados ? 'chip-success' : 'chip-danger'}`}>{config.saldosCargados ? `${config.saldosCargados} cuentas al ${config.corte}` : 'sin cargar'}</span>}</summary>
         <div className="px-4 pb-4 text-[13px] flex flex-col gap-3">
-          <p className="text-ink-soft">Exportá de QuickBooks el <b>Balance Sheet</b> y el <b>Profit and Loss</b> (enero 1 hasta la misma fecha) a Excel y subilos acá. Desde esa fecha de corte, tax.invoice suma todo lo nuevo que cargues.</p>
+          <p className="text-ink-soft">Exportá del sistema anterior el <b>Balance Sheet</b> y el <b>Profit and Loss</b> (enero 1 hasta la misma fecha) a Excel y subilos acá. Desde esa fecha de corte, tax.invoice suma todo lo nuevo que cargues.</p>
           <div className="flex flex-wrap gap-4 items-end">
             <label className="flex flex-col gap-1">Balance Sheet (.xlsx)
               <input type="file" accept=".xlsx" onChange={(e) => setArchBalance(e.target.files?.[0] ?? null)} />

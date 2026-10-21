@@ -255,7 +255,7 @@ export async function arAgingSummary({ al, conn = db }) {
     total: true,
     valores: tot,
     formulas: [0, 1, 2, 3, 4].map(() => ({ filas: idx.map((fila) => ({ fila, signo: 1 })) })).concat([{ columnas: [0, 1, 2, 3, 4] }]),
-    moneda: [true, false, false, false, false, true], // QuickBooks pone "$" solo en CURRENT y Total
+    moneda: [true, false, false, false, false, true], // el sistema anterior pone "$" solo en CURRENT y Total
   });
 
   return {

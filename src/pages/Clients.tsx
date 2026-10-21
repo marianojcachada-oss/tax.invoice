@@ -206,7 +206,7 @@ export function Clients() {
             {visibles.length === 0 && (
               <div className="px-5 py-10 text-center text-ink-soft text-sm">
                 {clientes.length === 0 ? (
-                  <>Todavía no hay clientes. Usá <b>Importar clientes</b> (CSV de QuickBooks) o <b>Agregar cliente</b>.</>
+                  <>Todavía no hay clientes. Usá <b>Importar clientes</b> (CSV o Excel) o <b>Agregar cliente</b>.</>
                 ) : (
                   <>Ningún cliente coincide. {(busqueda || filtro !== 'todos') && <button className="text-accent underline" onClick={() => { setBusqueda(''); setFiltro('todos'); }}>Limpiar búsqueda y filtros</button>}</>
                 )}

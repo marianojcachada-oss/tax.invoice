@@ -240,7 +240,7 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
     <div className="fixed inset-0 bg-black/30 flex items-start justify-center pt-8 z-50 overflow-y-auto pb-10" onClick={importando ? undefined : onClose}>
       <div className="panel w-[min(660px,96vw)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-          <span className="font-semibold text-[15px]">Importar historial de QuickBooks</span>
+          <span className="font-semibold text-[15px]">Importar historial del sistema anterior</span>
           <button onClick={onClose} disabled={importando} className="text-lg leading-none hover:text-accent" aria-label="Cerrar">✕</button>
         </div>
 
@@ -268,13 +268,13 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
         ) : !bloques || !resumen ? (
           <div className="p-4">
             <div className="text-sm text-ink-soft mb-3">
-              Subí el reporte <b>"Transaction List by Customer"</b> de QuickBooks en Excel (con Date, Transaction type, Num, Posting, Memo, Account y Amount).
-              <b> Importá primero los clientes</b> (Customer Contact List): cada movimiento se asigna al cliente por su nombre completo de QuickBooks.
+              Subí el reporte <b>"Transaction List by Customer"</b> del sistema anterior en Excel (con Date, Transaction type, Num, Posting, Memo, Account y Amount).
+              <b> Importá primero los clientes</b> (Customer Contact List): cada movimiento se asigna al cliente por su nombre completo del sistema anterior.
             </div>
             <div className="text-ink-faint text-[11.5px] mb-3 bg-line-soft rounded-[6px] p-2.5 flex flex-col gap-1">
-              <span>QuickBooks no dice qué pago corresponde a qué factura: cada pago y cada nota de crédito se aplican a la factura abierta más vieja (FIFO). La deuda neta de cada cliente es exactamente la de QuickBooks.</span>
+              <span>el sistema anterior no dice qué pago corresponde a qué factura: cada pago y cada nota de crédito se aplican a la factura abierta más vieja (FIFO). La deuda neta de cada cliente es exactamente la del sistema anterior.</span>
               <span>El método de pago se infiere de la cuenta: Cash on Hand → efectivo · Bank of America → Zelle · Undeposited Funds → Kotapay.</span>
-              <span>El número de cada factura y nota de crédito de QuickBooks queda guardado en su descripción.</span>
+              <span>El número de cada factura y nota de crédito del sistema anterior queda guardado en su descripción.</span>
             </div>
             <div className="border-t border-line pt-4">
               <div className="th-label mb-1.5">Subir archivo (XLSX)</div>
@@ -340,7 +340,7 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
                   <div className="text-ink-soft">Deuda total del archivo: <b>${verif.totalArchivo.toLocaleString('en-US', { minimumFractionDigits: 2 })}</b> · en la app: <b>${verif.totalApp.toLocaleString('en-US', { minimumFractionDigits: 2 })}</b> · cargado: {verif.facturasApp.toLocaleString('en-US')} facturas y {verif.pagosApp.toLocaleString('en-US')} pagos</div>
                   {verif.rango && (
                     <table className="w-full text-[12px] mt-1 border-t border-line-soft">
-                      <thead><tr className="text-ink-faint text-left"><th className="py-1 font-normal">En el rango elegido</th><th className="font-normal text-right">QuickBooks</th><th className="font-normal text-right">App</th><th className="font-normal text-right">Dif.</th></tr></thead>
+                      <thead><tr className="text-ink-faint text-left"><th className="py-1 font-normal">En el rango elegido</th><th className="font-normal text-right">el sistema anterior</th><th className="font-normal text-right">App</th><th className="font-normal text-right">Dif.</th></tr></thead>
                       <tbody>
                         {verif.rango.map((r) => (
                           <tr key={r.concepto} className="border-t border-line-soft">
@@ -366,7 +366,7 @@ export function ImportTransactionHistoryModal({ onClose }: { onClose: () => void
 
             <div className="border border-danger/30 rounded-[6px] p-3 mb-3 text-[12.5px]">
               <div className="font-medium text-danger-dark">Borrar el historial importado</div>
-              <div className="text-ink-faint mt-0.5">Elimina todas las facturas, pagos, notas de crédito y reembolsos que vinieron de QuickBooks (no toca lo generado en la app) y deja a los clientes listos para importar de nuevo, por ejemplo con otro rango de fechas.</div>
+              <div className="text-ink-faint mt-0.5">Elimina todas las facturas, pagos, notas de crédito y reembolsos que vinieron del sistema anterior (no toca lo generado en la app) y deja a los clientes listos para importar de nuevo, por ejemplo con otro rango de fechas.</div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <input value={confirmarBorrar} onChange={(e) => setConfirmarBorrar(e.target.value)} placeholder='Escribí BORRAR para confirmar' className="h-8 px-2 border border-line rounded-[5px] bg-surface w-56" />
                 <button className="btn-outline" disabled={confirmarBorrar !== 'BORRAR' || borrando || importando} onClick={handleBorrar}>{borrando ? 'Borrando…' : 'Borrar historial importado'}</button>

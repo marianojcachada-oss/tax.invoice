@@ -5,7 +5,7 @@ import PDFDocument from 'pdfkit';
 
 const dolares = (c) => (c == null ? null : c / 100);
 const letra = (i) => String.fromCharCode(65 + i); // A, B, C... (hasta 26 columnas)
-const FILA_INICIAL = 6; // fila de Excel de la primera fila del informe (igual que QuickBooks)
+const FILA_INICIAL = 6; // fila de Excel de la primera fila del informe (igual que el sistema anterior)
 
 export const nombreArchivo = (modelo, ext) => `${modelo.empresa.replace(/[^A-Za-z0-9]+/g, '_')}_${modelo.titulo.replace(/[^A-Za-z0-9]+/g, '_')}.${ext}`;
 

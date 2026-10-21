@@ -25,7 +25,7 @@ export async function leerReporteQB(base64) {
   try {
     await wb.xlsx.load(Buffer.from(base64, 'base64'));
   } catch {
-    throw new ErrorContable('No se pudo leer el archivo: tiene que ser el Excel (.xlsx) exportado desde QuickBooks.');
+    throw new ErrorContable('No se pudo leer el archivo: tiene que ser el Excel (.xlsx) exportado desde el sistema anterior.');
   }
   const ws = wb.worksheets[0];
   const titulo = String(valorCelda(ws.getCell('A2')) ?? '').trim();
@@ -48,8 +48,8 @@ export async function leerReporteQB(base64) {
 export async function cargarArranque({ balance, resultados }) {
   const bs = await leerReporteQB(balance);
   const pl = await leerReporteQB(resultados);
-  if (!/balance sheet/i.test(bs.titulo)) throw new ErrorContable('El primer archivo no parece un Balance Sheet de QuickBooks.');
-  if (!/profit and loss/i.test(pl.titulo)) throw new ErrorContable('El segundo archivo no parece un Profit and Loss de QuickBooks.');
+  if (!/balance sheet/i.test(bs.titulo)) throw new ErrorContable('El primer archivo no parece un Balance Sheet del sistema anterior.');
+  if (!/profit and loss/i.test(pl.titulo)) throw new ErrorContable('El segundo archivo no parece un Profit and Loss del sistema anterior.');
   if (!bs.fechaFin || bs.fechaFin !== pl.fechaFin) {
     throw new ErrorContable(`Las fechas no coinciden: el Balance Sheet es "${bs.periodo}" y el Profit and Loss es "${pl.periodo}". Tienen que estar a la misma fecha.`);
   }

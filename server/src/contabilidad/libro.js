@@ -152,7 +152,7 @@ export async function saldosResultados(desde, hasta, conn = db) {
   const anioCorte = cfg.corte.slice(0, 4);
   const inicioAnioCorte = `${anioCorte}-01-01`;
   if (hasta < cfg.corte) {
-    throw new ErrorContable(`Este informe solo se puede emitir a partir de la fecha de corte contable (${cfg.corte}): antes de esa fecha los datos están en QuickBooks.`);
+    throw new ErrorContable(`Este informe solo se puede emitir a partir de la fecha de corte contable (${cfg.corte}): antes de esa fecha los datos están en el sistema anterior.`);
   }
   const incluyeArranque = desde <= inicioAnioCorte;
   if (!incluyeArranque && desde <= cfg.corte) {

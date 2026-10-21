@@ -70,7 +70,7 @@ test('"desde" resume el historial anterior en un saldo inicial y conserva la deu
   ];
   const p = planificarCliente(eventos, { desde: '2026-01-01' });
   assert.equal(p.omitidos.resumidos, 2);
-  assert.match(p.facturas[0].concepto, /Saldo inicial QuickBooks/);
+  assert.match(p.facturas[0].concepto, /Saldo inicial al 2026-01-01/);
   assert.equal(p.facturas[0].monto, 6000);
   const deuda = p.facturas.reduce((a, f) => a + f.monto - f.pagado, 0) - p.ncs.reduce((a, n) => a + n.monto - n.aplicado, 0);
   assert.equal(deuda, 100 + 50 - 40 - 70 > 0 ? (100 + 50 - 40 - 70) * 100 : -(Math.abs(100 + 50 - 40 - 70) * 100));

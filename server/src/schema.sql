@@ -330,6 +330,8 @@ CREATE TABLE IF NOT EXISTS asiento_lineas (
 ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS cuenta_ingreso TEXT;
 -- true: el fee tildado en la ficha del cliente se vuelve a facturar cada semana hasta que se lo saque a mano. false (multa): se factura una sola vez y se destilda solo.
 ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS se_arrastra BOOLEAN NOT NULL DEFAULT true;
+-- true: el fee aparece para tildarlo en la ficha del cliente ("Fees a facturar en la próxima corrida"). Por defecto no aparece ninguno: se eligen desde Configuración.
+ALTER TABLE catalogo_fees ADD COLUMN IF NOT EXISTS visible_en_ficha BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE cuentas ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
 ALTER TABLE gastos ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS cuenta_contable TEXT;

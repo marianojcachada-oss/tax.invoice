@@ -101,7 +101,7 @@ export function Informes() {
     <div className="px-6 md:px-8 py-6 max-w-[1100px]">
       <div className="mb-4">
         <h1 className="font-semibold text-[22px]">Informes contables</h1>
-        <p className="text-ink-soft text-[13px]">Los mismos informes que usa el estudio contable en QuickBooks, con los mismos nombres y cuentas, para el cierre del año fiscal.</p>
+        <p className="text-ink-soft text-[13px]">Los mismos informes que usa el estudio contable en el sistema anterior, con los mismos nombres y cuentas, para el cierre del año fiscal.</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Elegir informe">

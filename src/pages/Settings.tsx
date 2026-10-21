@@ -1,5 +1,6 @@
 import { ImportTransactionHistoryModal } from '../components/ImportTransactionHistoryModal';
 import { useState } from 'react';
+import { DollarSign, CalendarClock, CalendarDays, CreditCard, Building2, Mail, ArrowRightLeft, Bell, Phone, Users, DatabaseBackup, TriangleAlert, ListChecks, type LucideIcon } from 'lucide-react';
 import { useDataStore } from '../data/DataContext';
 import { api } from '../data/apiClient';
 import type { MetodoPago } from '../types';
@@ -26,6 +27,18 @@ const METODOS_LABEL: Record<MetodoPago, string> = {
 
 const inputCls = 'w-full border border-line rounded-[5px] bg-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent';
 const fieldLabelCls = 'text-ink-faint text-[10.5px] uppercase tracking-wide font-medium mb-1';
+
+/** Título de cada sección de Configuración: ícono + nombre, para distinguirlas de un vistazo. */
+function Cab({ icono: Icono, id, peligro, children }: { icono: LucideIcon; id?: string; peligro?: boolean; children: React.ReactNode }) {
+  return (
+    <div id={id} className="flex items-center gap-2.5 scroll-mt-4">
+      <span className={`grid place-items-center w-7 h-7 rounded-[8px] shrink-0 ${peligro ? 'bg-danger/10 text-danger-dark' : 'bg-accent/10 text-accent'}`}>
+        <Icono size={15} strokeWidth={2} />
+      </span>
+      <span className={`th-label ${peligro ? '!text-danger-dark' : ''}`}>{children}</span>
+    </div>
+  );
+}
 
 export function Settings() {
   const [importarHistorialAbierto, setImportarHistorialAbierto] = useState(false);
@@ -133,9 +146,21 @@ export function Settings() {
   return (
     <div className="px-6 md:px-8 py-6 max-w-[900px] flex flex-col gap-4">
       <div className="font-semibold text-xl">Configuración</div>
+      <nav className="flex flex-wrap gap-1.5" aria-label="Secciones de configuración">
+        {[
+          ['cuota', 'Cuota', DollarSign], ['emision', 'Emisión', CalendarClock], ['precios', 'Precios', CalendarDays], ['metodos', 'Métodos de pago', CreditCard],
+          ['empresa', 'Empresa', Building2], ['mail', 'Mail', Mail], ['migracion', 'Migración', ArrowRightLeft], ['recordatorios', 'Recordatorios', Bell],
+          ['usuarios', 'Usuarios', Users], ['catalogo', 'Catálogo de fees', ListChecks], ['respaldo', 'Respaldo', DatabaseBackup],
+        ].map(([id, nombre, Icono]) => {
+          const I = Icono as LucideIcon;
+          return (
+            <a key={id as string} href={`#${id}`} className="chip hover:border-accent inline-flex items-center gap-1.5"><I size={12} />{nombre as string}</a>
+          );
+        })}
+      </nav>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Cuota semanal por defecto</div>
+        <div className="mb-2"><Cab icono={DollarSign} id="cuota">Cuota semanal por defecto</Cab></div>
         <div className="flex gap-2.5 items-center">
           <input
             type="number"
@@ -148,7 +173,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Día de emisión y vencimiento</div>
+        <div className="mb-2"><Cab icono={CalendarClock} id="emision">Día de emisión y vencimiento</Cab></div>
         <div className="flex gap-1.5">
           {DIAS.map((d) => (
             <button key={d.valor} onClick={() => setDia(d.valor)} aria-pressed={dia === d.valor} className={dia === d.valor ? 'chip-accent' : 'chip'}>
@@ -163,7 +188,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Precio de la cuota semanal (1090PB) según el día</div>
+        <div className="mb-2"><Cab icono={CalendarDays} id="precios">Precio de la cuota semanal (1090PB) según el día</Cab></div>
         <div className="text-ink-faint text-[11px] mb-3">
           Normativa: $145 los lunes, con descuento si se corre la generación después. Si un día
           se deja vacío, se usa la cuota por defecto (${cuota}). Solo afecta a los clientes que
@@ -197,7 +222,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Métodos de pago habilitados</div>
+        <div className="mb-2"><Cab icono={CreditCard} id="metodos">Métodos de pago habilitados</Cab></div>
         <div className="grid gap-1.5 mt-1">
           {configuracion.metodosHabilitados.map((m) => (
             <span key={m} className="chip-success w-fit">✓ {METODOS_LABEL[m]}</span>
@@ -206,7 +231,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Datos de la empresa</div>
+        <div className="mb-2"><Cab icono={Building2} id="empresa">Datos de la empresa</Cab></div>
         <div className="text-ink-faint text-[11px] mb-3">
           Se usan para autocompletar el encabezado de cada factura (nombre, dirección y correo).
         </div>
@@ -228,7 +253,7 @@ export function Settings() {
 
       <div className="panel p-5">
         <div className="flex items-center justify-between mb-1.5">
-          <div className="th-label">Mail de facturas pagas</div>
+          <Cab icono={Mail} id="mail">Mail de facturas pagas</Cab>
           <button
             role="switch"
             aria-checked={mail.envioAutomatico}
@@ -334,15 +359,15 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1">Migración desde QuickBooks</div>
-        <p className="text-ink-soft text-[12.5px] mb-3">Cargá el historial de transacciones exportado de QuickBooks (facturas y pagos). Se usa durante la migración, no en el día a día.</p>
+        <div className="mb-1.5"><Cab icono={ArrowRightLeft} id="migracion">Migración de datos</Cab></div>
+        <p className="text-ink-soft text-[12.5px] mb-3">Cargá el historial de transacciones del sistema anterior (facturas, pagos y notas de crédito). Se usa durante la migración, no en el día a día.</p>
         <button className="btn-outline" onClick={() => setImportarHistorialAbierto(true)}>Importar historial</button>
       </div>
       {importarHistorialAbierto && <ImportTransactionHistoryModal onClose={() => setImportarHistorialAbierto(false)} />}
 
       <div className="panel p-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="th-label">Recordatorios</div>
+          <Cab icono={Bell} id="recordatorios">Recordatorios</Cab>
           <button onClick={() => setRecordActivo((v) => !v)} className={recordActivo ? 'chip-accent' : 'chip'}>
             {recordActivo ? 'Activos' : 'Desactivados'}
           </button>
@@ -379,7 +404,7 @@ export function Settings() {
         </div>
 
         <div className="mt-4 border-t border-line-soft pt-4">
-          <div className="th-label mb-1.5">Integración con RingCentral</div>
+          <div className="mb-2"><Cab icono={Phone} id="ringcentral">Integración con RingCentral</Cab></div>
           <div className="text-ink-faint text-[11px] mb-2.5">
             Mientras estas credenciales estén vacías, el envío queda simulado (no manda mensajes
             reales, pero no rompe nada) — ver server/src/ringcentral.js.
@@ -408,7 +433,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Usuarios</div>
+        <div className="mb-2"><Cab icono={Users} id="usuarios">Usuarios</Cab></div>
         <div className="text-ink-faint text-[11px] mb-3">
           Quién puede entrar a la app y qué puede hacer. Los operadores no ven
           Configuración ni Auditoría, y no pueden borrar cuentas/proveedores
@@ -462,7 +487,7 @@ export function Settings() {
       </div>
 
       <div className="panel p-5">
-        <div className="th-label mb-1.5">Datos y respaldo</div>
+        <div className="mb-2"><Cab icono={DatabaseBackup} id="respaldo">Datos y respaldo</Cab></div>
         <div className="text-ink-faint text-[11px]">
           Los datos ya no viven en este navegador — están en el servidor
           (base de datos real, Postgres). El respaldo se maneja del lado
@@ -473,12 +498,12 @@ export function Settings() {
       <CatalogoFeesPanel />
 
       <div className="panel p-5 border-danger/30">
-        <div className="th-label mb-1.5 !text-danger-dark">Zona de peligro</div>
+        <div className="mb-2"><Cab icono={TriangleAlert} id="peligro" peligro>Zona de peligro</Cab></div>
         <div className="text-ink-soft text-[11.5px] mb-3">
           Borra <b>clientes, facturas, pagos, notas de crédito, reembolsos, gastos,
           cuentas, transferencias, proveedores, bills, documentos y el historial de
           auditoría</b>. Pensado para limpiar los datos de prueba antes de hacer la
-          migración final desde QuickBooks. <b>No se puede deshacer.</b> No se
+          migración final. <b>No se puede deshacer.</b> No se
           borran los usuarios ni la configuración de la empresa.
         </div>
         {borradoOk ? (
@@ -529,7 +554,7 @@ function CatalogoFeesPanel() {
 
   return (
     <div className="panel p-5">
-      <div className="th-label mb-1.5">Catálogo de fees</div>
+      <div className="mb-2"><Cab icono={ListChecks} id="catalogo">Catálogo de fees</Cab></div>
       <div className="text-ink-faint text-[11px] mb-3">
         Los ítems que agregues acá aparecen como desplegable al crear una factura manual —
         el precio se autocompleta solo (editable), y queda un "Otro" al final para cargar
@@ -552,6 +577,10 @@ function CatalogoFeesPanel() {
               />
             </div>
             <div className="flex items-center gap-3 shrink-0">
+              <label className="flex items-center gap-1.5 text-[11.5px] text-ink-soft cursor-pointer" title="Tildado: este fee aparece en la ficha de cada cliente para poder marcarlo. Destildado: no aparece.">
+                <input type="checkbox" checked={f.visibleEnFicha} onChange={(e) => actualizarItemCatalogoFee(f.id, { visibleEnFicha: e.target.checked })} />
+                En ficha
+              </label>
               <label className="flex items-center gap-1.5 text-[11.5px] text-ink-soft cursor-pointer" title="Tildado: si se marca este fee en la ficha de un cliente, se vuelve a facturar cada semana. Destildado: es una multa, se cobra una sola vez.">
                 <input type="checkbox" checked={f.seArrastra} onChange={(e) => actualizarItemCatalogoFee(f.id, { seArrastra: e.target.checked })} />
                 {f.seArrastra ? 'Se arrastra' : 'Multa'}

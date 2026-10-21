@@ -28,7 +28,7 @@ historialRouter.post('/importar-historial', requiereAdmin, async (req, res) => {
   const r = await importarLote(db, { bloques, desde, hasta, usuario: req.usuario.nombre });
   await registrarAuditoria({
     usuario: req.usuario.nombre,
-    accion: 'Importó historial de QuickBooks',
+    accion: 'Importó el historial de transacciones',
     entidad: 'Sistema',
     entidadId: 'importar-historial',
     resumen: `Lote: ${r.clientes} clientes, ${r.facturas} facturas, ${r.pagos} pagos, ${r.notasCredito} notas de crédito, ${r.reembolsos} reembolsos${desde ? ` (resumido antes de ${desde})` : ''}${hasta ? ` (hasta ${hasta})` : ''}. ${r.yaImportados.length} ya importados, ${r.sinCliente.length} sin cliente.`,
@@ -82,13 +82,13 @@ historialRouter.post('/verificar', requiereAdmin, async (req, res) => {
     const lim = [desde || '0000-01-01', hasta || '9999-12-31'];
     const q = (sql) => db.prepare(sql).get(nombres, ...lim);
     const f = await q(`SELECT COUNT(*) AS n, COALESCE(SUM(f.monto),0) AS m FROM facturas f JOIN clientes c ON c.id = f.cliente_id
-                       WHERE c.nombre_qb = ANY(?) AND f.id LIKE 'fac-h-%' AND f.concepto NOT LIKE 'Saldo inicial QuickBooks%' AND f.fecha >= ? AND f.fecha <= ?`);
+                       WHERE c.nombre_qb = ANY(?) AND f.id LIKE 'fac-h-%' AND f.concepto NOT LIKE 'Saldo inicial al %' AND f.fecha >= ? AND f.fecha <= ?`);
     const p = await q(`SELECT COUNT(*) AS n, COALESCE(SUM(p.monto),0) AS m FROM pagos p JOIN clientes c ON c.id = p.cliente_id
                        WHERE c.nombre_qb = ANY(?) AND p.id LIKE 'pago-h-%' AND p.fecha >= ? AND p.fecha <= ?`);
     const ex = await q(`SELECT COALESCE(SUM(n.monto),0) AS m FROM notas_credito n JOIN clientes c ON c.id = n.cliente_id
                         WHERE c.nombre_qb = ANY(?) AND n.id LIKE 'nc-h-%' AND n.motivo LIKE 'Excedente%' AND n.fecha >= ? AND n.fecha <= ?`);
     const cm = await q(`SELECT COUNT(*) AS n, COALESCE(SUM(n.monto),0) AS m FROM notas_credito n JOIN clientes c ON c.id = n.cliente_id
-                        WHERE c.nombre_qb = ANY(?) AND n.id LIKE 'nc-h-%' AND n.motivo LIKE 'Migración QuickBooks · Credit Memo%' AND n.fecha >= ? AND n.fecha <= ?`);
+                        WHERE c.nombre_qb = ANY(?) AND n.id LIKE 'nc-h-%' AND n.motivo LIKE 'Migración · Credit Memo%' AND n.fecha >= ? AND n.fecha <= ?`);
     const fila = (nombre, a, cantApp, montoApp) => ({ concepto: nombre, cantArchivo: a.n, montoArchivo: a.monto, cantApp, montoApp: montoApp / 100, dif: Math.round((montoApp - Math.round(a.monto * 100))) / 100 });
     rango = [
       fila('Facturas', totales.facturas, Number(f.n), Number(f.m)),
@@ -125,7 +125,7 @@ historialRouter.post('/borrar-historial-importado', requiereAdmin, async (req, r
   });
   await registrarAuditoria({
     usuario: req.usuario.nombre,
-    accion: 'Borró el historial importado de QuickBooks',
+    accion: 'Borró el historial importado',
     entidad: 'Sistema',
     entidadId: 'borrar-historial',
     resumen: `Se borraron ${r.facturas} facturas, ${r.pagos} pagos, ${r.notasCredito} notas de crédito y ${r.reembolsos} reembolsos importados; ${r.clientes} clientes quedaron listos para importar de nuevo.`,

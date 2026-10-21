@@ -29,11 +29,11 @@ const SALIDA = new Set(['Refund', 'Expense', 'Check']);
 const efectoEnDeuda = (e) => {
   if (e.tipo === 'Invoice') return e.cent;
   if (COBRO.has(e.tipo)) return -e.cent;
-  if (e.tipo === 'Credit Memo') return e.cent; // negativo en QuickBooks
+  if (e.tipo === 'Credit Memo') return e.cent; // negativo en el sistema anterior
   return 0;
 };
 
-const rotulo = (tipo, num, memo) => `Migración QuickBooks · ${tipo}${num ? ` #${num}` : ''}${memo ? ` · ${memo}` : ''}`;
+const rotulo = (tipo, num, memo) => `Migración · ${tipo}${num ? ` #${num}` : ''}${memo ? ` · ${memo}` : ''}`;
 
 /**
  * Arma, sin tocar la base, todo lo que hay que insertar para un cliente.
@@ -79,8 +79,8 @@ export function planificarCliente(eventos, { desde = null, hasta = null, compens
       plan.omitidos.resumidos += 1;
     } else dentro.push(e);
   }
-  if (previo > 0) crearFactura({ fecha: desde, num: null }, `Saldo inicial QuickBooks al ${desde} (resumen del historial anterior)`, previo);
-  if (previo < 0) plan.ncs.push({ id: nuevoId('nc-h'), fecha: desde, monto: -previo, aplicado: 0, motivo: `Saldo a favor QuickBooks al ${desde} (resumen del historial anterior)`, numeroQb: null });
+  if (previo > 0) crearFactura({ fecha: desde, num: null }, `Saldo inicial al ${desde} (resumen del historial anterior)`, previo);
+  if (previo < 0) plan.ncs.push({ id: nuevoId('nc-h'), fecha: desde, monto: -previo, aplicado: 0, motivo: `Saldo a favor al ${desde} (resumen del historial anterior)`, numeroQb: null });
 
   for (const e of dentro) {
     if (e.tipo === 'Invoice') {
@@ -98,13 +98,13 @@ export function planificarCliente(eventos, { desde = null, hasta = null, compens
           fecha: e.fecha,
           monto: aplicado,
           metodo: metodoDesdeCuenta(e.cuenta),
-          referencia: ['QuickBooks', e.num, e.cuenta, e.memo].filter(Boolean).join(' · '),
+          referencia: ['Migración', e.num, e.cuenta, e.memo].filter(Boolean).join(' · '),
         };
         plan.pagos.push(pago);
         for (const h of hechas) plan.aplicaciones.push({ pagoId: pago.id, factura: h.f, monto: h.monto });
       }
       if (resto > 0) {
-        plan.ncs.push({ id: nuevoId('nc-h'), fecha: e.fecha, monto: resto, aplicado: 0, motivo: 'Excedente — migración histórica QuickBooks', numeroQb: e.num || null });
+        plan.ncs.push({ id: nuevoId('nc-h'), fecha: e.fecha, monto: resto, aplicado: 0, motivo: 'Excedente — migración histórica', numeroQb: e.num || null });
       }
     } else if (e.tipo === 'Credit Memo') {
       if (e.cent === 0) { plan.omitidos.sinMonto += 1; continue; }

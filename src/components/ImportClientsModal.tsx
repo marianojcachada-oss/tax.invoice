@@ -27,7 +27,7 @@ interface FilaImportada {
   motivoEstado?: string; // por qué quedó inactivo (informativo, no afecta si se importa o no)
   seleccionada: boolean;
   motivoSugerido?: string;
-  nombreQb?: string; // nombre exacto en QuickBooks (Customer Contact List)
+  nombreQb?: string; // nombre exacto en el sistema anterior (Customer Contact List)
   notas?: string;
 }
 
@@ -191,7 +191,7 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
         setEsQuickBooks(pareceQuickBooks);
         setFilas(datos.map((f) => (pareceContactos ? mapearFilaContacto(f) : mapearFila(f, pareceQuickBooks))));
       } catch {
-        setErrorArchivo('No se pudo leer el archivo. Probá exportarlo de nuevo desde QuickBooks.');
+        setErrorArchivo('No se pudo leer el archivo. Probá exportarlo de nuevo desde el sistema anterior.');
       }
     };
     reader.onerror = () => setErrorArchivo('No se pudo leer el archivo.');
@@ -250,9 +250,9 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
             <div className="text-lg font-semibold mb-1">Listo ✓</div>
             <div className="text-ink-soft text-sm">
               Se importaron <b>{resultado.importados}</b> clientes.
-              {resultado.omitidos > 0 && <> Se omitieron {resultado.omitidos} que ya estaban cargados (mismo nombre de QuickBooks).</>}
+              {resultado.omitidos > 0 && <> Se omitieron {resultado.omitidos} que ya estaban cargados (mismo nombre del sistema anterior).</>}
               {resultado.conSaldoInicial > 0 && (
-                <> A {resultado.conSaldoInicial} se les generó una factura de apertura con el saldo que ya tenían en QuickBooks.</>
+                <> A {resultado.conSaldoInicial} se les generó una factura de apertura con el saldo que ya tenían en el sistema anterior.</>
               )}
             </div>
             <button className="btn-accent mt-4" onClick={onClose}>Cerrar</button>
@@ -260,10 +260,10 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
         ) : !filas ? (
           <div className="p-4">
             <div className="text-sm text-ink-soft mb-3">
-              Lo ideal es el reporte <b>Customer Contact List</b> de QuickBooks (Informes → Customer Contact List → Excel): trae
-              nombre, teléfonos, email y direcciones, y se carga tal cual (el nombre completo de QuickBooks queda guardado para
+              Lo ideal es el reporte <b>Customer Contact List</b> del sistema anterior (Informes → Customer Contact List → Excel): trae
+              nombre, teléfonos, email y direcciones, y se carga tal cual (el nombre completo del sistema anterior queda guardado para
               después cruzar el historial de movimientos). Los clientes ya cargados se omiten, así que no se duplican si lo subís dos veces.
-              También se puede subir directo el archivo que exporta QuickBooks (Ventas → Clientes → Exportar),
+              También se puede subir directo el archivo que exporta el sistema anterior (Ventas → Clientes → Exportar),
               sea CSV o Excel (.xls/.xlsx) — se lee tal cual, sin tener que convertir nada a mano.
               Se detecta solo y se mapea automáticamente (nombre, teléfono, email, dirección, saldo
               pendiente, e incluso el código de TaxiCaller si ya está cargado como parte del nombre).
@@ -283,7 +283,7 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
             <div className="px-4 py-3 border-b border-line text-sm">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span>
-                  {esContactos ? 'Detectado como Customer Contact List de QuickBooks.' : esQuickBooks ? 'Detectado como export de QuickBooks.' : 'Detectado como plantilla propia.'}{' '}
+                  {esContactos ? 'Detectado como Customer Contact List del sistema anterior.' : esQuickBooks ? 'Detectado como export del sistema anterior.' : 'Detectado como plantilla propia.'}{' '}
                   <b>{filas.length}</b> filas · <span className="text-success">{seleccionadas.length} seleccionadas para importar</span>
                   {conSaldo > 0 && crearApertura && <> · {conSaldo} con saldo inicial (se les crea una factura de apertura)</>}
                   <br />
@@ -300,7 +300,7 @@ export function ImportClientsModal({ onClose }: { onClose: () => void }) {
                 <label className="flex items-start gap-2 mt-2 text-[12.5px] cursor-pointer">
                   <input type="checkbox" checked={crearApertura} onChange={(e) => setCrearApertura(e.target.checked)} className="accent-[var(--color-accent)] mt-0.5" />
                   <span>
-                    Crear una factura de apertura con el saldo de QuickBooks ({conSaldo} clientes).
+                    Crear una factura de apertura con el saldo del sistema anterior ({conSaldo} clientes).
                     <span className="text-ink-faint"> Destildalo si después vas a importar el historial completo de transacciones: la deuda sale de ahí y, si no, se contaría dos veces.</span>
                   </span>
                 </label>

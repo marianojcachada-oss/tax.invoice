@@ -213,14 +213,14 @@ export function ClientDetail() {
         <Stat label="Pagado histórico" value={formatoMoneda(pagadoAnio)} />
       </div>
 
-      {catalogoFees.length > 0 && (
+      {catalogoFees.some((f) => f.visibleEnFicha) && (
         <div className="panel p-3.5 mb-5">
           <div className="th-label mb-2">
             Fees a facturar en la próxima corrida semanal
             {feesPendientes.length > 0 && <span className="chip-accent ml-2 normal-case tracking-normal">{feesPendientes.length}</span>}
           </div>
           <div className="flex flex-wrap gap-2">
-            {catalogoFees.map((f) => {
+            {catalogoFees.filter((f) => f.visibleEnFicha).map((f) => {
               const marcado = feesPendientes.includes(f.id);
               return (
                 <label

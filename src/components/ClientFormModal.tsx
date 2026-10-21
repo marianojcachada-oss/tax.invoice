@@ -26,7 +26,7 @@ export function ClientFormModal({ cliente, onClose }: Props) {
 
   function handleGuardar() {
     const cuota = Number(cuotaSemanal);
-    if (!codigo.trim()) return setError('El código (el ID de TaxiCaller/QuickBooks) es obligatorio.');
+    if (!codigo.trim()) return setError('El código (el ID de TaxiCaller) es obligatorio.');
     if (!nombre.trim()) return setError('El nombre es obligatorio.');
     if (!cuotaSemanal || Number.isNaN(cuota) || cuota < 0) return setError('La cuota semanal tiene que ser un número válido.');
     setError(null);
@@ -71,7 +71,7 @@ export function ClientFormModal({ cliente, onClose }: Props) {
         <div className="p-4 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="th-label mb-1">Código (TaxiCaller / QuickBooks)</div>
+              <div className="th-label mb-1">Código (TaxiCaller)</div>
               <input
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}

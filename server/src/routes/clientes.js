@@ -107,7 +107,7 @@ clientesRouter.post('/importar-lote', async (req, res) => {
         f.estado === 'inactivo' ? 'inactivo' : 'activo', f.nombreQb || null,
       ]);
       if (f.saldoInicial && f.saldoInicial > 0) {
-        aperturas.push([generarId('fac-migracion'), ++numeroFactura, clienteId, semanaActual, hoy, hoy, 'Saldo inicial (migración desde QuickBooks)', aCentavos(f.saldoInicial), 0, 'pendiente', req.usuario.nombre]);
+        aperturas.push([generarId('fac-migracion'), ++numeroFactura, clienteId, semanaActual, hoy, hoy, 'Saldo inicial (migración)', aCentavos(f.saldoInicial), 0, 'pendiente', req.usuario.nombre]);
         conSaldoInicial += 1;
       }
     }

@@ -209,38 +209,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cargarTodo = useCallback(async () => {
-    const [
-      cli, fac, pag, gas, nc, reemb, cfg, cue, trans, prov, bil, bilPag, us, catFees,
-    ] = await Promise.all([
-      api.get<Cliente[]>('/clientes'),
-      api.get<Factura[]>('/facturas'),
-      api.get<Pago[]>('/pagos'),
-      api.get<Gasto[]>('/gastos'),
-      api.get<NotaCredito[]>('/notas-credito'),
-      api.get<Reembolso[]>('/reembolsos'),
-      api.get<ConfiguracionCobro>('/configuracion'),
-      api.get<Cuenta[]>('/cuentas'),
-      api.get<Transferencia[]>('/cuentas/transferencias'),
-      api.get<Proveedor[]>('/proveedores'),
-      api.get<Bill[]>('/bills'),
-      api.get<BillPago[]>('/bills/pagos'),
-      api.get<Usuario[]>('/auth/usuarios'),
-      api.get<ItemCatalogoFee[]>('/catalogo-fees'),
-    ]);
-    setClientes(cli);
-    setFacturas(fac);
-    setPagos(pag);
-    setGastos(gas);
-    setNotasCredito(nc);
-    setReembolsos(reemb);
-    setConfiguracion(cfg);
-    setCuentas(cue);
-    setTransferencias(trans);
-    setProveedores(prov);
-    setBills(bil);
-    setBillPagos(bilPag);
-    setUsuarios(us);
-    setCatalogoFees(catFees);
+    // allSettled: si una sola lista falla (ej. un 500 en una ruta), el resto igual se carga y la
+    // sesión NO se cierra. Solo se avisa qué falló.
+    const pedidos = [
+      ['clientes', api.get<Cliente[]>('/clientes'), setClientes],
+      ['facturas', api.get<Factura[]>('/facturas'), setFacturas],
+      ['pagos', api.get<Pago[]>('/pagos'), setPagos],
+      ['gastos', api.get<Gasto[]>('/gastos'), setGastos],
+      ['notas de crédito', api.get<NotaCredito[]>('/notas-credito'), setNotasCredito],
+      ['reembolsos', api.get<Reembolso[]>('/reembolsos'), setReembolsos],
+      ['configuración', api.get<ConfiguracionCobro>('/configuracion'), setConfiguracion],
+      ['cuentas', api.get<Cuenta[]>('/cuentas'), setCuentas],
+      ['transferencias', api.get<Transferencia[]>('/cuentas/transferencias'), setTransferencias],
+      ['proveedores', api.get<Proveedor[]>('/proveedores'), setProveedores],
+      ['bills', api.get<Bill[]>('/bills'), setBills],
+      ['pagos de bills', api.get<BillPago[]>('/bills/pagos'), setBillPagos],
+      ['usuarios', api.get<Usuario[]>('/auth/usuarios'), setUsuarios],
+      ['catálogo de fees', api.get<ItemCatalogoFee[]>('/catalogo-fees'), setCatalogoFees],
+    ] as const;
+    const resultados = await Promise.allSettled(pedidos.map(([, p]) => p));
+    const fallos: string[] = [];
+    resultados.forEach((r, i) => {
+      const [nombre, , poner] = pedidos[i];
+      if (r.status === 'fulfilled') (poner as (v: unknown) => void)(r.value);
+      else {
+        if (r.reason instanceof ApiError && r.reason.status === 401) throw r.reason;
+        fallos.push(`${nombre} (${(r.reason as Error).message})`);
+      }
+    });
+    if (fallos.length) setErrorConexion(`No se pudo cargar: ${fallos.join(', ')}. El resto de la app funciona.`);
   }, []);
 
   // Al montar: si hay un token guardado de una sesión anterior, se intenta

@@ -355,3 +355,15 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
   END LOOP;
 END $$;
+
+-- La fila única de configuración tiene que existir siempre: si la base es nueva
+-- (sin seed), sin ella /api/configuracion daba error 500 y la app echaba al usuario.
+INSERT INTO configuracion (
+  id, cuota_semanal_por_defecto, dia_emision, metodos_habilitados,
+  recordatorios_activo, recordatorios_semanas, recordatorios_solo_vencido, recordatorios_plantilla,
+  empresa_nombre, empresa_direccion, empresa_email
+) VALUES (
+  1, 14500, 'lun', '["zelle","efectivo","kotapay","ach","tarjeta"]',
+  true, 4, true, 'Hola {nombre}, tenés un saldo pendiente de {monto} ({dias} días de atraso). Por favor ponete al día cuando puedas. ¡Gracias!',
+  'tax.invoice', '', ''
+) ON CONFLICT (id) DO NOTHING;

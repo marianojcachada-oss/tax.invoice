@@ -60,6 +60,9 @@ function AuthGate() {
   return (
     <BrowserRouter>
       <Layout>
+        {errorConexion && usuarioActual && (
+          <div role="alert" className="mx-6 md:mx-8 mt-4 text-[12.5px] text-danger-dark border border-danger/30 rounded-[6px] px-3 py-2">{errorConexion}</div>
+        )}
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/clientes" element={<Clients />} />

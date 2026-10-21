@@ -190,10 +190,20 @@ export async function arAgingSummary({ al, conn = db }) {
 
   const facturas = await conn
     .prepare(
-      `SELECT f.id, f.cliente_id, f.fecha, f.fecha_vencimiento, f.monto, f.monto_pagado,
-              COALESCE((SELECT SUM(pa.monto) FROM pago_aplicaciones pa JOIN pagos p ON p.id = pa.pago_id WHERE pa.factura_id = f.id AND substr(p.fecha,1,10) <= ?), 0)::bigint AS pagado_hasta,
-              COALESCE((SELECT SUM(pa.monto) FROM pago_aplicaciones pa WHERE pa.factura_id = f.id), 0)::bigint AS pagado_por_pagos
-       FROM facturas f WHERE f.estado <> 'anulada' AND substr(f.fecha,1,10) <= ?`
+      // Los pagos se suman UNA vez por factura (GROUP BY) y se unen: antes era una subconsulta por cada factura,
+      // y con ~90.000 facturas Supabase cortaba la consulta por "statement timeout".
+      `WITH pa AS (
+         SELECT a.factura_id,
+                SUM(a.monto)::bigint AS total,
+                SUM(CASE WHEN substr(p.fecha,1,10) <= ? THEN a.monto ELSE 0 END)::bigint AS hasta
+           FROM pago_aplicaciones a JOIN pagos p ON p.id = a.pago_id
+          GROUP BY a.factura_id
+       )
+       SELECT f.id, f.cliente_id, f.fecha, f.fecha_vencimiento, f.monto, f.monto_pagado,
+              COALESCE(pa.hasta, 0) AS pagado_hasta,
+              COALESCE(pa.total, 0) AS pagado_por_pagos
+         FROM facturas f LEFT JOIN pa ON pa.factura_id = f.id
+        WHERE f.estado <> 'anulada' AND substr(f.fecha,1,10) <= ?`
     )
     .all(al, al);
   const ncs = await conn

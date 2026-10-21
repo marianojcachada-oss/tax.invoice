@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS pago_aplicaciones (
   monto INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_aplicaciones_pago ON pago_aplicaciones(pago_id);
+CREATE INDEX IF NOT EXISTS idx_aplicaciones_factura ON pago_aplicaciones(factura_id);
 
 CREATE TABLE IF NOT EXISTS notas_credito (
   id TEXT PRIMARY KEY,
@@ -369,3 +370,9 @@ INSERT INTO configuracion (
   true, 4, true, 'Hola {nombre}, tenés un saldo pendiente de {monto} ({dias} días de atraso). Por favor ponete al día cuando puedas. ¡Gracias!',
   'tax.invoice', '', ''
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Índices para las consultas de informes con decenas de miles de facturas (evitan el "statement timeout" de Supabase).
+CREATE INDEX IF NOT EXISTS idx_nc_facturas_factura ON nota_credito_facturas(factura_id);
+CREATE INDEX IF NOT EXISTS idx_nc_cliente ON notas_credito(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_fecha ON facturas(fecha);
+CREATE INDEX IF NOT EXISTS idx_pagos_fecha ON pagos(fecha);
